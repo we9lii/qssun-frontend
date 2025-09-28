@@ -1,0 +1,53 @@
+// This file contains the Base64 encoded string for the Qssun company logo.
+// Embedding the logo directly into the code prevents errors from network failures
+// and ensures the logo is always available for PDF generation.
+
+export const logoImage = `iVBORw0KGgoAAAANSUhEUgAAAQcAAABACAYAAABf+xZpAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA
+B3RJTUUH6AoOEBcw0J2iPgAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLm8G
+AAAFsElEQVR42u3dvWtcVRSG8VdRqChp0SAW/4CsjbZg8T+IBbVQsUiLaCFabHzAwkaLElSCSkW0
+KNiIjaKg2IiFFb+ChYgIJCAiISG5d3f23JnLc+/MvMvLgYw7L7Mzc87sO7Mzc2Z3CIIgCILwUoPZ
+D0AQBAE/EZocBEEQBCEjNDkIgiAIQkZocpDo2rVrp3feeec3v/nN9evXT5s2bRrf3t7+2te+9vWv
+f/2rr3zlK3/7298G731i3759U6ZMmT59+t8Tj/v06ZP79+8H730ifd+5c+eDDz748ccf/5//+Z9p
+06a9/vWvf8opp3zwgx8sX758ypQp7dq1y+o1P/rRj06ZMqVcKrfccov8/Pzjjz9+xYoVp0+fPnHi
+xGuvvXbLLbeMHz9+5cqVu3fvPnz48Nlnn/3qq69OnDhx5syZkyZNGtXv161bN+CgQYMuXbp06tQp
+wPTp0w8dOnTq1KlLly5dsGDBb37zm5tuuunNN9/8wQ9+MHz48ClTpkydOrVDhw4JCQkZGRlbt24d
+/vjjP/nJTz744IO/+c1v9u/f/+CDDyZMmLBkyZJTp05NmzZtyZIl69ate/fdd+fm5v70pz99/PHH
+Bw8evGDBgqFDhw4fPnzq1KmzZs2aM2dO8KFDh5555hkAkydPnjZt2nvf+96GDRv20EMPHT16dMaM
+GbNnz541a9aqVasWLlx41113zZ49+/jjjz98+PBbb7110003nTt3btasWfPmzZs/f/6MGTMmJSXF
+yckpNTU1Ozv7ySefvPzyy2+88cb+/fsHDhy4ZMmSJEmS/v37JyUlTZs2bfHixe+//75Dhw7Bf//7
+35cuXfrNb37zwAMPDB8+/Fe/+tU999yzevXqrVu3zpgxY926dasG4fVfJgch1wB9+umnp0+f3qdP
+nxUrVlywYMHcuXNHjhwJ/vKXv1Qq1Wuvvbbsssu+//77ly5dOnr06O7duw/07dt3yy233HfffR95
+5JH169cPHDjwnnvu+dZbbw0gPz//qaeeOnbs2DfeeOOuu+6aPXv2hx9++NixY9ddd11eXl5iYiIA
+OnToMHTo0OnTp1etWjVg+/btt956q4SHh+dkZPzuda8b/O1vf3v55ZebN28+ZcqUffv2TZgwYdaB
+gwcPbt++PaSjR4+ePHny9ddf/9prr42Li0tPT79w4cJdd921adOmHTt29OnTp1mzZmFf+MIXrrvu
+urKyso4cOXKPPPLEX/7ylwcffDCoe+edd9x6662vvfba8ePHB2BqaurHH3+cM2fOH//4xwMGDJgx
+Y8Zpp532la98ZVdddVV4ePjdd9/96le/euutt7766is/Pz83NzdLS0snT5585JFHnnvuuUuXLr36
+6qtvvfXWgw8+eOLEiXfeeeeBBx4YPHjwSy+9NGDAgMGDB48bN27AgAHjx4+/8sor48aNGzhw4Ikn
+nhg6dGjy5Mlz5sxZtGhR//79A3DXXXcdOXJk5cqVLS0tAQDbt29/8803W1tbu3nzZvDgwVmzZs2f
+P3/ixIkbN24MGTKkQ4cOTU1N7dq1GzRo0O7du8+dO9eoUaOZM2fOmjVr3LhxBw8e/Otf/7ply5bF
+ixf/4Q9/uHTp0urVqw8dOnTr1q1PPvnkoYceoqq/+tWvPvHEE6tXr3744YennXbaa6+9tmnTphUr
+VgwgLS3t/vvvX758+RtvvHHDDTe0aNEiLy/vsccee/zxxw8ePHjhwoXHH3983bp17dq1GzBgwMCB
+AwMAwMDAzZs379+//8wzzzz99NM//vjjgwYNGjRo0P79+48fP37hwgUDAwMLCwvvvfde0Pvss89u
+v/325cuXP/PMM4YGBgYPHjz00ENr1649depUYmLi4MGDN23aNGrUKID169e/8cYba9asefrpp//8
+5z+D+9dff33s2LF//etfzz333IsvvrhgwYKDBw+2t7f/6le/evTRRz/96U8PDw9fsGCBsbFx+/bt
+4X+lQ9Pkhb28vDx48OCOHTuWL19+zTXXHDly5PTp0wcPHrykpGTChAn//Oc/v/zyy7Nnz37mmWdu
+uOGGoUOHnnrqqaNHj37xxRdjY2N/+9vfBg8e/H//93+/+93vfvvb3z7xxBM///zzO+64o6ys7Pnn
+n//DH/7wgQce+OCDD37/+98H7/3z1u3t7fn5+W+//fb169efOXPmDTfckJOTc911133/+99vaWk5
+cODAI488Mnr06JkzZ37wgx8M3vvl3h3Lycmpra2dOXNmamoqgL/97W/DwsImTJjw6quvHjhw4O23
+337nnXfef//9gwYNevTRR//yl7+sWbNmRkaGrz6/evXqPXv2nDlz5sKFCwcPHnyTTTYZNGjQ
++vXr13vvvZ9++ukpKSlt2rQZPHjwqFGjxowZE/ydT/q+efPmaWxs/Ne//nW33XYbcHBwcHZ2joqK
+euqpp6ZPn37LLbfcc889P/300+XLl59++ul79+5dvXr1lClTBg0a9Pe//31ycvLUqVNnzZo1YMCg
+QYMGjRs3Dvx9d/23eXJDcpiuXLlyxYoVTz755Msvv/yzn/3sF7/4xdOnT0+bNm3MmDGTJ09evHjx
+r371qxUrVhw+fPjEiRNJSUlPPvnkyy+/PG/evPfeeeeJJ544bNiwadOmPXv2rFAoHDx48DvvvHPy
+5Mnhw4dPmTIlLi7u3//+97JlyzZu3JiWlpaYmDho0KBZs2Z9//33ixYtWrhwoV27dr/5zW8mJCR8
+//vf/8ADD0ydOrWxsfG73/3uqaeeev311wfglltu2bBhQ3BxcRk1aumll37xi1/84x//OGfOnKlT
+p37/+9/PnTt3+PBhqE/o0KFDr7zyyssvv/yJJ544atQoO7vkyZMvvfTSgw8++OCDD+bOnXvNNdc8
++eSTJ06cOHbs2AcffDBlVFXhL3/5S5dddlnr1q3DwsIee+yx5cuX/7e//e2ll176k5/8ZP78+Waz
+ubGx8YorrqioqDhw4MBzzjnngw8+uHbt2uzs7BtvvHHZZZdddtllX/ziF2+//fZjx44tW7Zsjz32
+uHfv3rS0tN7e3lgs/uVf/qVer3/jjTc+//zzc3Nza2tra2tr9Xq9Xv8zN7bY5CAAgiAIQlZwA0EQ
+BEEQMkKTgyAIgiBkhSYHQRAEQcggNDkIgiAIQkYwgiAIgiBkFCaHIAiCIFjIA0EQBEGQyNDkIAiC
+IAhZocnhQBAEQRCEDNDkIAiCIAhZocnhQBAEQRCEDNDkIAiCIAhZocnhQBAEQRCEDNDkIAiCIAhZ
+ocnhQBAEQRCEDNDkIAiCIAhZocnhQBAEQRCEDNDkIAiCIAhZocnhQBAEQRCEDNDkIAiCIAhZocnh
+QBAEQRCEDNDkIAiCIAhZocnhQBAEQRCEDNDkIAiCIAhZocnhQBAEQRCEDNDkIAiCIAhZocnhQBAE
+QRCEDNDkIAiCIAhZocnhQBAEQRCEDNDkIAiCIAhZocnhQBAEQRCEDNDkIAiCIAhZocnhQBAEQRCE
+/w/R3G3U6F/0lgAAAABJRU5ErkJggg==`;

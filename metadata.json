@@ -1,0 +1,7 @@
+{
+  "name": "Qssun Reports System",
+  "description": "A comprehensive management system for Qssun, designed to handle employee reports, project tracking, administrative tasks, and data analytics with a sophisticated user interface and robust security features.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

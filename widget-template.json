@@ -1,0 +1,40 @@
+{
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "Qssun Pending Reports",
+      "size": "medium",
+      "weight": "bolder"
+    },
+    {
+      "type": "TextBlock",
+      "text": "${pending_count} reports are waiting for your review.",
+      "wrap": true
+    },
+    {
+      "type": "FactSet",
+      "facts": [
+        {
+          "title": "Sales:",
+          "value": "${sales_count}"
+        },
+        {
+          "title": "Maintenance:",
+          "value": "${maintenance_count}"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.Execute",
+      "title": "View All",
+      "verb": "open",
+      "data": {
+        "url": "/?view=allReports&filter=pending"
+      }
+    }
+  ]
+}
