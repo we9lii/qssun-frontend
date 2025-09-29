@@ -28,8 +28,6 @@ import { PrintableView } from './components/ui/PrintableView';
 import { ConfirmationModal } from './components/common/ConfirmationModal';
 import AdminEmployeeDetailScreen from './screens/admin/AdminEmployeeDetailScreen';
 import TechnicalSupportScreen from './screens/common/TechnicalSupportScreen';
-import { X } from 'lucide-react';
-import OnboardingScreen from './screens/common/OnboardingScreen';
 import { Skeleton } from './components/common/Skeleton';
 
 
@@ -63,7 +61,7 @@ const App: React.FC = () => {
   useEffect(() => {
     document.documentElement.className = theme;
     document.documentElement.lang = lang;
-    if(activeView !== 'workflow') {
+    if(activeView !== 'workflow' && activeWorkflowId) {
         setActiveWorkflowId(null);
     }
     if (activeView !== 'reportDetail' && activeReportId) {
@@ -113,10 +111,6 @@ const App: React.FC = () => {
   if (!user) {
     return <LoginScreen />;
   }
-
-  if (user.isFirstLogin) {
-    return <OnboardingScreen onComplete={() => { /* State is handled in component now */ }}/>
-  }
   
   const editingReport = editingReportId ? reports.find(r => r.id === editingReportId) : null;
   
@@ -150,18 +144,20 @@ const App: React.FC = () => {
     if (activeReport) {
         return <ReportDetailScreen report={activeReport} />;
     }
+    
+    const activeRequest = activeWorkflowId ? requests.find(r => r.id === activeWorkflowId) : null;
 
     if(user.role === Role.Admin) {
+        if (activeRequest) {
+            return <WorkflowDetailScreen request={activeRequest} />;
+        }
         if (viewingEmployeeId) {
             return <AdminEmployeeDetailScreen />;
         }
         return AdminScreens[activeView] || <AdminDashboardScreen />;
     } else {
-        if (activeView === 'workflow' && activeWorkflowId) {
-            const request = requests.find(r => r.id === activeWorkflowId);
-            if (request) {
-                return <WorkflowDetailScreen request={request} />;
-            }
+        if (activeRequest) {
+            return <WorkflowDetailScreen request={activeRequest} />;
         }
         return EmployeeScreens[activeView] || <EmployeeDashboardScreen />;
     }
@@ -184,7 +180,7 @@ const App: React.FC = () => {
         <div className={`relative lg:mr-64 ${isSidebarCollapsed ? 'lg:mr-20' : 'lg:mr-64'} flex flex-col min-h-screen transition-all duration-300`}>
              <Header toggleMobileMenu={() => setMobileMenuOpen(!isMobileMenuOpen)} />
              <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-                <div key={activeView + viewingEmployeeId} className="max-w-7xl mx-auto w-full animate-content-fade-in">
+                <div key={activeView + viewingEmployeeId + activeWorkflowId} className="max-w-7xl mx-auto w-full animate-content-fade-in">
                     {renderContent()}
                 </div>
             </main>

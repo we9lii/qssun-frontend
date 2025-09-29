@@ -12,18 +12,24 @@ import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import useAppStore from '../../store/useAppStore';
 import toast from 'react-hot-toast';
 
+// Helper functions to safely render potentially complex data
+const getPositionTitle = (position: any): string => {
+  if (!position) return '—';
+  if (typeof position === 'string') return position;
+  return String(position);
+};
+
 const ProfileScreen: React.FC = () => {
     const { t, user, updateUser: updateContextUser } = useAppContext();
     const { setActiveView, updateUser: updateStoreUser } = useAppStore();
     const [isEditing, setIsEditing] = useState(false);
     
-    if (!user) return null; // Should not happen if routed correctly
+    if (!user) return null;
 
     const [formData, setFormData] = useState({
         name: user.name,
-        phone: user.phone,
-        position: user.position,
-        bio: 'مسؤول مبيعات متخصص في حلول الطاقة الشمسية للمشاريع الكبرى.',
+        phone: user.phone || '',
+        position: getPositionTitle(user.position),
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -32,17 +38,13 @@ const ProfileScreen: React.FC = () => {
     
     const handleSave = () => {
         const updatedUserData = {
-            id: user.id, // Must include ID for the store action
+            id: user.id,
             name: formData.name,
             phone: formData.phone,
             position: formData.position,
         };
-
-        // Update the master list of users in the Zustand store
         updateStoreUser(updatedUserData);
-        // Update the currently logged-in user's context for immediate UI feedback
         updateContextUser(updatedUserData);
-        
         toast.success('تم حفظ التعديلات بنجاح');
         setIsEditing(false);
     };
@@ -50,9 +52,8 @@ const ProfileScreen: React.FC = () => {
     const handleCancel = () => {
         setFormData({
             name: user.name,
-            phone: user.phone,
-            position: user.position,
-            bio: 'مسؤول مبيعات متخصص في حلول الطاقة الشمسية للمشاريع الكبرى.',
+            phone: user.phone || '',
+            position: getPositionTitle(user.position),
         });
         setIsEditing(false);
     }
@@ -92,7 +93,7 @@ const ProfileScreen: React.FC = () => {
                             <div className="mt-6 space-y-3 text-sm">
                                 <div className="flex items-center gap-3"><Mail size={16} className="text-slate-400"/><span dir="ltr">{user.email}</span></div>
                                 <div className="flex items-center gap-3"><Phone size={16} className="text-slate-400"/>
-                                    {isEditing ? <Input name="phone" dir="ltr" value={formData.phone} onChange={handleInputChange} /> : <span dir="ltr">{formData.phone}</span>}
+                                    {isEditing ? <Input name="phone" dir="ltr" value={formData.phone} onChange={handleInputChange} /> : <span dir="ltr">{formData.phone || '—'}</span>}
                                 </div>
                                 <div className="flex items-center gap-3"><MapPin size={16} className="text-slate-400"/><span>{user.branch}</span></div>
                                 <div className="flex items-center gap-3"><Calendar size={16} className="text-slate-400"/><span>انضم في: {formattedJoinDate}</span></div>
@@ -111,12 +112,6 @@ const ProfileScreen: React.FC = () => {
                     </Card>
                 </div>
                 <div className="lg:col-span-2 space-y-6">
-                    {isEditing && (
-                        <Card>
-                            <CardHeader><CardTitle>نبذة شخصية</CardTitle></CardHeader>
-                            <CardContent><Textarea name="bio" value={formData.bio} onChange={handleInputChange} /></CardContent>
-                        </Card>
-                    )}
                     <Card>
                         <CardHeader><CardTitle>معلومات العمل</CardTitle></CardHeader>
                         <CardContent className="grid grid-cols-2 gap-4">

@@ -1,6 +1,7 @@
-import React, { createContext, useState, ReactNode, useCallback } from 'react';
-import { User } from '../types';
+import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
+import { Report, User, WorkflowRequest, Branch } from '../types';
 import toast from 'react-hot-toast';
+import useAppStore from '../store/useAppStore';
 
 type Theme = 'light' | 'dark';
 type Language = 'ar' | 'en';
@@ -57,7 +58,6 @@ const translations: { [key in Language]: { [key:string]: string } } = {
     managePermissions: "الأدوار والصلاحيات",
     componentsShowcase: "مكونات متخصصة",
     techSupport: "الدعم الفني",
-    // New Workflow Translations
     createNewRequest: "إنشاء طلب جديد",
     requestType: "نوع الطلب",
     import: "استيراد",
@@ -68,11 +68,6 @@ const translations: { [key in Language]: { [key:string]: string } } = {
     high: "عالية",
     medium: "متوسطة",
     low: "منخفضة",
-    supplierName: "اسم المورد",
-    supplierContact: "معلومات الاتصال",
-    estimatedCost: "التكلفة المتوقعة",
-    expectedDeliveryDate: "تاريخ التسليم المتوقع",
-    notes: "ملاحظات إضافية",
     saveRequest: "حفظ الطلب",
   },
   en: {
@@ -111,7 +106,6 @@ const translations: { [key in Language]: { [key:string]: string } } = {
     managePermissions: "Roles & Permissions",
     componentsShowcase: "Components Showcase",
     techSupport: "Technical Support",
-    // New Workflow Translations
     createNewRequest: "Create New Request",
     requestType: "Request Type",
     import: "Import",
@@ -122,21 +116,63 @@ const translations: { [key in Language]: { [key:string]: string } } = {
     high: "High",
     medium: "Medium",
     low: "Low",
-    supplierName: "Supplier Name",
-    contactInfo: "Contact Info",
-    estimatedCost: "Estimated Cost",
-    expectedDeliveryDate: "Expected Delivery Date",
-    notes: "Additional Notes",
     saveRequest: "Save Request",
   },
 };
-
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>('dark');
   const [lang, setLang] = useState<Language>('ar');
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // Simplified loading state
+  const [isLoading, setIsLoading] = useState(true);
+  const { setReports, setRequests, setUsers, setBranches } = useAppStore();
+
+  const fetchInitialData = useCallback(async () => {
+    try {
+      const apiBaseUrl = 'https://qssun-backend-api.onrender.com/api';
+      const [reportsRes, workflowsRes, usersRes, branchesRes] = await Promise.all([
+        fetch(`${apiBaseUrl}/reports`),
+        fetch(`${apiBaseUrl}/workflows`),
+        fetch(`${apiBaseUrl}/users`),
+        fetch(`${apiBaseUrl}/branches`)
+      ]);
+
+      if (!reportsRes.ok) throw new Error('Failed to fetch reports');
+      if (!workflowsRes.ok) throw new Error('Failed to fetch workflows');
+      if (!usersRes.ok) throw new Error('Failed to fetch users');
+      if (!branchesRes.ok) throw new Error('Failed to fetch branches');
+      
+      const reportsData: Report[] = await reportsRes.json();
+      const workflowsData: WorkflowRequest[] = await workflowsRes.json();
+      const usersData: User[] = await usersRes.json();
+      const branchesData: Branch[] = await branchesRes.json();
+      
+      setReports(reportsData);
+      setRequests(workflowsData);
+      setUsers(usersData);
+      setBranches(branchesData);
+
+    } catch (error) {
+      console.error("Failed to fetch initial data:", error);
+      toast.error('فشل تحميل البيانات الأولية من الخادم.');
+    }
+  }, [setReports, setRequests, setUsers, setBranches]);
+
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem('qssun_user');
+      if (savedUser) {
+        const parsedUser: User = JSON.parse(savedUser);
+        setUser(parsedUser);
+        fetchInitialData();
+      }
+    } catch (error) {
+      console.error("Failed to parse user from localStorage", error);
+      localStorage.removeItem('qssun_user');
+    } finally {
+        setIsLoading(false);
+    }
+  }, [fetchInitialData]);
 
   const toggleTheme = () => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
@@ -153,34 +189,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const login = async (employeeId: string, password: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch('https://qrs.qssun.solar/api/login', {
+      const response = await fetch('https://qssun-backend-api.onrender.com/api/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employeeId, password }),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
-        // Handle server-side errors (e.g., wrong password, user not found)
-        const errorMessage = data.message === 'Employee not found.' 
-            ? t('employeeNotFound') 
-            : data.message === 'Incorrect password.'
-            ? t('incorrectPassword')
-            : 'حدث خطأ غير متوقع.';
-        toast.error(errorMessage);
-      } else {
-        // On successful login
-        const loggedInUser: User = data;
-        toast.success(`مرحباً بك مجدداً، ${loggedInUser.name}`);
-        setUser(loggedInUser);
+        throw new Error(data.message || 'Login failed');
       }
-    } catch (error) {
-      // Handle network errors (e.g., backend server is down)
-      console.error('Login fetch error:', error);
-      toast.error('لا يمكن الاتصال بالخادم. الرجاء المحاولة لاحقاً.');
+      const loggedInUser: User = data;
+      toast.success(`مرحباً بك مجدداً، ${loggedInUser.name}`);
+      setUser(loggedInUser);
+      localStorage.setItem('qssun_user', JSON.stringify(loggedInUser));
+      await fetchInitialData();
+    } catch (error: any) {
+        const errorMessage = error.message === 'Employee not found.' ? t('employeeNotFound') :
+                             error.message === 'Incorrect password.' ? t('incorrectPassword') :
+                             'لا يمكن الاتصال بالخادم. الرجاء المحاولة لاحقاً.';
+        toast.error(errorMessage);
+        console.error('Login fetch error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -188,10 +216,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('qssun_user');
+    setReports([]);
+    setRequests([]);
+    setUsers([]);
+    setBranches([]);
   };
 
   const updateUser = (updatedUserData: Partial<User>) => {
-      setUser(prevUser => (prevUser ? { ...prevUser, ...updatedUserData } : null));
+      setUser(prevUser => {
+        if (!prevUser) return null;
+        const newUser = { ...prevUser, ...updatedUserData };
+        localStorage.setItem('qssun_user', JSON.stringify(newUser));
+        return newUser;
+      });
   };
 
   return (

@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Qssun Reports System</title>
     
-    <!-- PWA -->
     <link rel="manifest" href="/manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <link rel="apple-touch-icon" href="/vite.svg">
@@ -16,6 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
+      // Tailwind CSS Configuration
       tailwind.config = {
         darkMode: 'class',
         theme: {
@@ -24,19 +24,15 @@
               sans: ['Cairo', 'sans-serif'],
             },
             colors: {
-                primary: {
-                    DEFAULT: '#f59e0b', // Amber-500
-                },
-                secondary: {
-                    DEFAULT: '#f97316', // Orange-500
-                },
+                primary: { DEFAULT: '#f59e0b' }, // Amber-500
+                secondary: { DEFAULT: '#f97316' }, // Orange-500
                 success: '#10b981',
                 warning: '#f97316',
                 destructive: '#ef4444',
                 report: {
                     sales: '#3b82f6',
                     maintenance: '#10b981',
-                    project: '#f97316', // Aligned with new theme
+                    project: '#f97316',
                     inquiry: '#64748b',
                 },
                 nav: {
@@ -48,273 +44,44 @@
                     profile: '#f43f5e',
                 }
             },
-            boxShadow: {
-              'elegant': '0 4px 12px 0 rgba(0, 0, 0, 0.05)',
-              'solar': '0 0 15px 0 rgba(245, 158, 11, 0.4)',
-              'sales': '0 0 15px 0 rgba(59, 130, 246, 0.5)',
-              'maintenance': '0 0 15px 0 rgba(16, 185, 129, 0.5)',
-              'project': '0 0 15px 0 rgba(249, 115, 22, 0.5)',
-              'log': '0 0 15px 0 rgba(6, 182, 212, 0.5)',
-              'workflow': '0 0 15px 0 rgba(99, 102, 241, 0.5)',
-              'profile': '0 0 15px 0 rgba(244, 63, 94, 0.5)',
-            },
-            backgroundImage: {
-              'gradient-primary': 'linear-gradient(to right, #f59e0b, #f97316)',
-            },
           }
         }
       }
     </script>
-    <style>
-      /* Visually hide the print container, but keep it accessible for printing */
-      #print-mount-point {
-        position: absolute;
-        width: 0;
-        height: 0;
-        overflow: hidden;
-        left: -9999px;
-      }
-
-      @media print {
-        /* Hide the main app and show only the print container */
-        body > #root {
-          display: none;
-        }
-        #print-mount-point {
-          position: static;
-          width: auto;
-          height: auto;
-          overflow: visible;
-          left: auto;
-        }
-      }
-
-      /* Animation for content fade-in */
+    <style type="text/css">
+      /* --- CORE STYLES & ANIMATIONS --- */
       @keyframes contentFadeIn {
-        from { opacity: 0; transform: translateY(15px) scale(0.98); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
-      }
-      .animate-content-fade-in {
-        animation: contentFadeIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-      }
-      
-      /* Shimmer animation for skeleton loaders */
-      @keyframes shimmer {
-        100% { transform: translateX(100%); }
-      }
-      .animate-pulse { /* This class is used by Skeleton.tsx */
-        position: relative;
-        overflow: hidden;
-      }
-      .animate-pulse::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        transform: translateX(-100%);
-        background: linear-gradient(90deg, 
-            rgba(255, 255, 255, 0) 0, 
-            rgba(255, 255, 255, 0.1) 20%, 
-            rgba(255, 255, 255, 0.3) 60%, 
-            rgba(255, 255, 255, 0));
-        animation: shimmer 1.5s infinite;
-      }
-
-      /* Animation for welcome banner */
-      @keyframes slideDownFadeIn {
-        from { opacity: 0; transform: translateY(-100%); }
+        from { opacity: 0; transform: translateY(15px); }
         to { opacity: 1; transform: translateY(0); }
       }
-      .animate-slide-down-fade-in {
-        animation: slideDownFadeIn 0.5s ease-out forwards;
-      }
-      
-      /* Enhanced modal animation - used by ConfirmationModal.tsx */
-      @keyframes modal-pop-in {
-        from { opacity: 0; transform: scale(0.95); }
-        to { opacity: 1; transform: scale(1); }
-      }
-      .animate-modal-pop-in {
-        animation: modal-pop-in 0.3s ease-out forwards;
-      }
-
-      /* Ripple effect for buttons */
-      .ripple {
-          position: absolute;
-          border-radius: 50%;
-          transform: scale(0);
-          animation: ripple 600ms linear;
-          background-color: rgba(255, 255, 255, 0.7);
-      }
-      @keyframes ripple {
-          to {
-              transform: scale(4);
-              opacity: 0;
-          }
-      }
-
-      /* --- VISUAL EFFECTS FOR EMPLOYEE DASHBOARD --- */
-      /* Aurora Background */
-      .aurora-bg {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          overflow: hidden;
-          z-index: 0;
-      }
-      .dark .aurora-bg {
-        opacity: 0.5;
-      }
-      .aurora-bg::before, .aurora-bg::after {
-          content: '';
-          position: absolute;
-          width: 800px;
-          height: 800px;
-          border-radius: 50%;
-          opacity: 0.15;
-          filter: blur(100px);
-          mix-blend-mode: screen;
-      }
-      .aurora-bg::before {
-          background: radial-gradient(circle, #f59e0b, transparent 60%);
-          animation: aurora 20s infinite alternate;
-          top: -300px;
-          left: -300px;
-      }
-      .aurora-bg::after {
-          background: radial-gradient(circle, #f97316, transparent 60%);
-          animation: aurora 25s infinite alternate-reverse;
-          bottom: -300px;
-          right: -300px;
-      }
-      @keyframes aurora {
-          from { transform: translate(0, 0) rotate(0deg); }
-          to { transform: translate(200px, 200px) rotate(180deg); }
-      }
-
-      /* Shine Effect for Cards */
-      .shine-effect {
-        position: relative;
-        overflow: hidden;
-      }
-      .shine-effect::after {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background-image: linear-gradient(
-          115deg,
-          rgba(255, 255, 255, 0) 40%,
-          rgba(255, 255, 255, 0.15) 50%,
-          rgba(255, 255, 255, 0) 60%
-        );
-        transform: rotate(20deg) translateX(-75%);
-        transition: transform 0.8s ease;
-      }
-      .shine-effect:hover::after {
-        transform: rotate(20deg) translateX(75%);
-      }
-
-      /* --- NEW EFFECTS FOR TECH SUPPORT SCREEN (LAVA LAMP) --- */
-      .lava-lamp-bg {
-          position: absolute;
-          inset: 0;
-          overflow: hidden;
-          background: #111827; /* dark:bg-slate-900 */
-      }
-      .lava-lamp-bg::before, .lava-lamp-bg::after {
-          content: '';
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(80px);
-      }
-      .lava-lamp-bg::before {
-          width: 350px;
-          height: 350px;
-          background: #f59e0b;
-          animation: blob1 15s infinite alternate;
-      }
-      .lava-lamp-bg::after {
-          width: 250px;
-          height: 250px;
-          background: #f97316;
-          animation: blob2 18s infinite alternate;
-      }
-      @keyframes blob1 {
-          0% { transform: translate(0, 0); }
-          25% { transform: translate(100%, 50%); }
-          50% { transform: translate(50%, 100%); }
-          75% { transform: translate(0, 50%); }
-          100% { transform: translate(0, 0); }
-      }
-      @keyframes blob2 {
-          0% { transform: translate(100%, 100%); }
-          25% { transform: translate(0, 50%); }
-          50% { transform: translate(50%, 0); }
-          75% { transform: translate(100%, 50%); }
-          100% { transform: translate(100%, 100%); }
-      }
-      
-      /* --- ANIMATED GRADIENT BORDER FOR TECH SUPPORT CARD --- */
-      .animated-border-wrapper {
-          position: relative;
-          border-radius: 1rem; /* Corresponds to rounded-2xl */
-          overflow: hidden;
-          z-index: 1; /* Ensure it's on top of the lava lamp */
-      }
-      .animated-border-wrapper::before {
-          content: '';
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: conic-gradient(
-              from 180deg at 50% 50%,
-              #f97316, #f59e0b, #fbbf24, #f97316
-          );
-          animation: rotate-gradient 4s linear infinite;
-      }
-      @keyframes rotate-gradient {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+      .animate-content-fade-in {
+        animation: contentFadeIn 0.4s ease-out forwards;
       }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react-dom": "https://aistudiocdn.com/react-dom@^19.1.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "recharts": "https://aistudiocdn.com/recharts@^3.2.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.543.0",
-    "@tanstack/react-query": "https://aistudiocdn.com/@tanstack/react-query@^5.51.1",
-    "react-hook-form": "https://aistudiocdn.com/react-hook-form@^7.52.1",
-    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
-    "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^3.8.2",
-    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
-    "date-fns/": "https://aistudiocdn.com/date-fns@^3.6.0/",
-    "xlsx": "https://aistudiocdn.com/xlsx@^0.18.5",
-    "date-fns": "https://aistudiocdn.com/date-fns@^4.1.0",
-    "zustand": "https://aistudiocdn.com/zustand@^4.5.4",
-    "zustand/": "https://aistudiocdn.com/zustand@^4.5.4/",
-    "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.4.1",
-    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.57.4"
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "recharts": "https://esm.sh/recharts@2.12.7",
+    "lucide-react": "https://esm.sh/lucide-react@0.378.0",
+    "react-hook-form": "https://esm.sh/react-hook-form@7.51.4",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.8.2",
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1",
+    "date-fns": "https://esm.sh/date-fns@3.6.0",
+    "date-fns/locale": "https://esm.sh/date-fns@3.6.0/locale",
+    "xlsx": "https://esm.sh/xlsx@0.18.5",
+    "zustand": "https://esm.sh/zustand@4.5.2",
+    "react-hot-toast": "https://esm.sh/react-hot-toast@2.4.1"
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
-    <div id="print-mount-point"></div>
+    <div id="print-mount-point" style="position: absolute; left: -9999px; width: 0; height: 0; overflow: hidden;"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

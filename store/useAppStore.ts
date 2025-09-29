@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import { User, Report, ReportType, WorkflowRequest, ReportStatus, Role, Branch, ChatSession, ChatMessage } from '../types';
-import { mockRequests, mockReports, mockUsers, mockBranches } from '../data/mockData';
+import { User, Report, ReportType, WorkflowRequest, ReportStatus, Role, Branch } from '../types';
 import toast from 'react-hot-toast';
+
+// Helper to get the base API URL
+const getApiUrl = () => 'https://qssun-backend-api.onrender.com/api';
 
 interface AppState {
     // UI State & App Lifecycle
@@ -15,8 +17,8 @@ interface AppState {
         onConfirm: () => void;
     };
     viewingEmployeeId: string | null;
-    reportsLogFilters: { status: ReportStatus } | null; // For employee log
-    allReportsFilters: { type?: ReportType; status?: ReportStatus } | null; // For admin view
+    reportsLogFilters: { status: ReportStatus } | null;
+    allReportsFilters: { type?: ReportType; status?: ReportStatus } | null;
     
     setActiveView: (view: string) => void;
     toggleSidebar: () => void;
@@ -29,68 +31,56 @@ interface AppState {
     setReportsLogFilters: (filters: { status: ReportStatus } | null) => void;
     setAllReportsFilters: (filters: { type?: ReportType; status?: ReportStatus } | null) => void;
 
-    // Workflow State
+    // Data State
     requests: WorkflowRequest[];
+    reports: Report[];
+    users: User[];
+    branches: Branch[];
+    isLoadingData: boolean;
+
+    // Setters for initial data loading
+    setRequests: (requests: WorkflowRequest[]) => void;
+    setReports: (reports: Report[]) => void;
+    setUsers: (users: User[]) => void;
+    setBranches: (branches: Branch[]) => void;
+
+    // Workflow Actions
     activeWorkflowId: string | null;
     setActiveWorkflowId: (id: string | null) => void;
-    createRequest: (request: WorkflowRequest) => void;
-    updateRequest: (request: WorkflowRequest) => void;
+    createRequest: (request: Omit<WorkflowRequest, 'lastModified'>, employeeId: string) => Promise<void>;
+    updateRequest: (request: WorkflowRequest) => Promise<void>;
+    deleteRequest: (requestId: string) => Promise<void>;
 
-    // Reports State
-    reports: Report[];
+    // Reports Actions
     activeReportId: string | null;
     editingReportId: string | null;
     reportForPrinting: Report | null;
     setActiveReportId: (id: string | null) => void;
     setEditingReportId: (id: string | null) => void;
-    addReport: (report: Omit<Report, 'id'>) => void;
-    updateReport: (report: Report, userRole: User['role']) => void;
-    deleteReport: (reportId: string) => void;
+    addReport: (report: Omit<Report, 'id'>) => Promise<void>;
+    updateReport: (report: Report, userRole: User['role']) => void; // Stays local for now
+    deleteReport: (reportId: string) => Promise<void>;
     viewReport: (reportId: string) => void;
     editReport: (report: Report) => void;
     printReport: (reportId: string) => void;
     clearReportForPrinting: () => void;
 
-    // Admin Data State
-    users: User[];
-    branches: Branch[];
-    addUser: (userData: Omit<User, 'id' | 'joinDate'>) => void;
-    updateUser: (userData: Partial<User> & { id: string }) => void;
-    deleteUser: (userId: string) => void;
-    addBranch: (branchData: Omit<Branch, 'id'|'creationDate'>) => void;
-    updateBranch: (branchData: Partial<Branch> & {id: string}) => void;
-    deleteBranch: (branchId: string) => void;
-
-    // AI Chat State
-    chatSessions: ChatSession[];
-    quickChat: ChatSession | null;
-    sendNaseehMessage: (messageContent: string, sessionId: string, user: User) => void;
-    createNewSession: () => void;
-    deleteSession: (sessionId: string) => void;
-    sendQuickChatMessage: (messageContent: string, user: User) => void;
-    clearQuickChat: () => void;
+    // Admin Data Actions
+    addUser: (userData: Omit<User, 'id' | 'joinDate'> & { password?: string }) => Promise<void>;
+    updateUser: (userData: Partial<User> & { id: string }) => Promise<void>;
+    deleteUser: (userId: string) => Promise<void>;
+    addBranch: (branchData: Omit<Branch, 'id'|'creationDate'>) => Promise<void>;
+    updateBranch: (branchData: Partial<Branch> & {id: string}) => Promise<void>;
+    deleteBranch: (branchId: string) => Promise<void>;
 }
 
-const initialChatSession: ChatSession = {
-    id: 'session-1',
-    title: 'مقدمة عن الطاقة الشمسية',
-    isLoading: false,
-    messages: [
-        { id: 'msg-1', sender: 'ai', content: 'مرحباً بك! أنا "نصيح"، مساعدك الذكي. كيف يمكنني خدمتك اليوم؟' }
-    ]
-};
-
 const useAppStore = create<AppState>((set, get) => ({
-    // UI State & App Lifecycle
+    // UI State
     activeView: 'dashboard',
     isSidebarCollapsed: false,
     isMobileMenuOpen: false,
     isWorkflowModalOpen: false,
-    confirmationState: {
-        isOpen: false,
-        message: '',
-        onConfirm: () => {},
-    },
+    confirmationState: { isOpen: false, message: '', onConfirm: () => {} },
     viewingEmployeeId: null,
     reportsLogFilters: null,
     allReportsFilters: null,
@@ -106,26 +96,87 @@ const useAppStore = create<AppState>((set, get) => ({
     setReportsLogFilters: (filters) => set({ reportsLogFilters: filters }),
     setAllReportsFilters: (filters) => set({ allReportsFilters: filters }),
 
-    // Workflow State
-    requests: mockRequests,
+    // Data State
+    requests: [],
+    reports: [],
+    users: [],
+    branches: [],
+    isLoadingData: true,
+
+    // Setters for initial data
+    setRequests: (requests) => set({ requests }),
+    setReports: (reports) => set({ reports }),
+    setUsers: (users) => set({ users }),
+    setBranches: (branches) => set({ branches }),
+
+    // Workflow Actions
     activeWorkflowId: null,
     setActiveWorkflowId: (id) => set({ activeWorkflowId: id }),
-    createRequest: (request) => set(state => ({ requests: [request, ...state.requests], isWorkflowModalOpen: false })),
-    updateRequest: (request) => set(state => ({ requests: state.requests.map(r => r.id === request.id ? request : r) })),
+    createRequest: async (requestData, employeeId) => {
+        try {
+            const payload = { ...requestData, employeeId };
+            const response = await fetch(`${getApiUrl()}/workflows`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) throw new Error('Failed to create request');
+            const newRequest = await response.json();
+            set(state => ({
+                requests: [newRequest, ...state.requests],
+                isWorkflowModalOpen: false,
+            }));
+            toast.success('تم إنشاء الطلب بنجاح!');
+        } catch (error) {
+            console.error("Error creating request:", error);
+            toast.error('فشل في إنشاء الطلب.');
+        }
+    },
+    updateRequest: async (request) => {
+        try {
+            const response = await fetch(`${getApiUrl()}/workflows/${request.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(request),
+            });
+            if (!response.ok) throw new Error('Failed to update request');
+            set(state => ({
+                requests: state.requests.map(r => r.id === request.id ? request : r)
+            }));
+        } catch (error) {
+            console.error("Error updating request:", error);
+            toast.error('فشل تحديث تقدم سير العمل.');
+        }
+    },
+    deleteRequest: async (requestId) => {
+        try {
+            await fetch(`${getApiUrl()}/workflows/${requestId}`, { method: 'DELETE' });
+            set(state => ({ requests: state.requests.filter(r => r.id !== requestId) }));
+            toast.success('تم حذف الطلب بنجاح.');
+        } catch (error) {
+            toast.error('فشل حذف الطلب.');
+        }
+    },
 
-    // Reports State
-    reports: mockReports,
+    // Reports Actions
     activeReportId: null,
     editingReportId: null,
     reportForPrinting: null,
     setActiveReportId: (id) => set({ activeReportId: id }),
     setEditingReportId: (id) => set({ editingReportId: id }),
-    addReport: (reportData) => {
-        const newReport = {
-            ...reportData,
-            id: `R${Date.now()}`
-        };
-        set(state => ({ reports: [newReport, ...state.reports] }));
+    addReport: async (reportData) => {
+        try {
+            const response = await fetch(`${getApiUrl()}/reports`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reportData),
+            });
+            if (!response.ok) throw new Error('Failed to add report');
+            const newReport = await response.json();
+            set(state => ({ reports: [newReport, ...state.reports] }));
+        } catch (error) {
+            toast.error('فشل في إضافة التقرير.');
+        }
     },
     updateReport: (report, userRole) => {
         set(state => ({
@@ -134,11 +185,13 @@ const useAppStore = create<AppState>((set, get) => ({
             activeView: userRole === Role.Admin ? 'allReports' : 'log'
         }));
     },
-    deleteReport: (reportId) => {
-        set(state => ({
-            reports: state.reports.filter(r => r.id !== reportId),
-            activeReportId: state.activeReportId === reportId ? null : state.activeReportId,
-        }));
+    deleteReport: async (reportId) => {
+        try {
+            await fetch(`${getApiUrl()}/reports/${reportId}`, { method: 'DELETE' });
+            set(state => ({ reports: state.reports.filter(r => r.id !== reportId) }));
+        } catch (error) {
+            toast.error('فشل حذف التقرير.');
+        }
     },
     viewReport: (reportId) => set({ activeReportId: reportId, activeView: 'reportDetail' }),
     editReport: (report) => {
@@ -156,142 +209,79 @@ const useAppStore = create<AppState>((set, get) => ({
     },
     clearReportForPrinting: () => set({ reportForPrinting: null }),
     
-    // Admin Data State
-    users: mockUsers,
-    branches: mockBranches,
-    addUser: (userData) => {
-        const newUser: User = {
-            ...userData,
-            id: `U${Date.now()}`,
-            joinDate: new Date().toISOString(),
-        };
-        set(state => ({ users: [newUser, ...state.users] }));
-    },
-    updateUser: (userData) => {
-        set(state => ({ 
-            users: state.users.map(u => u.id === userData.id ? { ...u, ...userData } : u) 
-        }));
-    },
-    deleteUser: (userId) => {
-        set(state => ({ users: state.users.filter(u => u.id !== userId) }));
-    },
-     addBranch: (branchData) => {
-        const newBranch: Branch = {
-            ...branchData,
-            id: `B${Date.now()}`,
-            creationDate: new Date().toISOString(),
-        };
-        set(state => ({ branches: [newBranch, ...state.branches] }));
-    },
-    updateBranch: (branchData) => {
-        set(state => ({ 
-            branches: state.branches.map(b => b.id === branchData.id ? { ...b, ...branchData } : b) 
-        }));
-    },
-    deleteBranch: (branchId) => {
-        set(state => ({ branches: state.branches.filter(b => b.id !== branchId) }));
-    },
-
-    // AI Chat State
-    chatSessions: [initialChatSession],
-    quickChat: null,
-
-    createNewSession: () => {
-        const newSession: ChatSession = {
-            id: `session-${Date.now()}`,
-            title: 'محادثة جديدة',
-            isLoading: false,
-            messages: [
-                { id: 'msg-1', sender: 'ai', content: 'أهلاً بك. كيف يمكنني مساعدتك؟' }
-            ]
-        };
-        set(state => ({ chatSessions: [newSession, ...state.chatSessions] }));
-    },
-
-    deleteSession: (sessionId) => {
-        set(state => ({ chatSessions: state.chatSessions.filter(s => s.id !== sessionId) }));
-    },
-
-    sendNaseehMessage: async (messageContent, sessionId, user) => {
-        const userMessage: ChatMessage = {
-            id: `msg-user-${Date.now()}`,
-            sender: 'user',
-            content: messageContent,
-        };
-
-        set(state => ({
-            chatSessions: state.chatSessions.map(s =>
-                s.id === sessionId
-                    ? { ...s, messages: [...s.messages, userMessage], isLoading: true }
-                    : s
-            ),
-        }));
-        
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        const aiResponse: ChatMessage = {
-            id: `msg-ai-${Date.now()}`,
-            sender: 'ai',
-            content: `هذا رد تجريبي على سؤالك: "${messageContent}". أنا حالياً في وضع التطوير.`,
-            sources: [
-                { uri: '#', title: 'مصدر معلومات تجريبي 1' },
-                { uri: '#', title: 'مصدر تجريبي آخر للمعلومات' },
-            ]
-        };
-
-        set(state => ({
-            chatSessions: state.chatSessions.map(s =>
-                s.id === sessionId
-                    ? { ...s, messages: [...s.messages, aiResponse], isLoading: false }
-                    : s
-            ),
-        }));
-    },
-    
-    sendQuickChatMessage: async (messageContent, user) => {
-        const userMessage: ChatMessage = {
-            id: `q-msg-user-${Date.now()}`,
-            sender: 'user',
-            content: messageContent,
-        };
-
-        let currentQuickChat = get().quickChat;
-        if (!currentQuickChat) {
-            currentQuickChat = {
-                id: 'quick-chat-session',
-                title: 'محادثة سريعة',
-                isLoading: false,
-                messages: [],
-            };
+    // Admin Data Actions
+    addUser: async (userData) => {
+        try {
+            const response = await fetch(`${getApiUrl()}/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData),
+            });
+            if (!response.ok) throw new Error('Failed to add user');
+            const newUser = await response.json();
+            set(state => ({ users: [newUser, ...state.users] }));
+        } catch (error) {
+            toast.error('فشل إضافة الموظف.');
         }
-
-        set({
-            quickChat: {
-                ...currentQuickChat,
-                messages: [...currentQuickChat.messages, userMessage],
-                isLoading: true,
-            }
-        });
-        
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        const aiResponse: ChatMessage = {
-            id: `q-msg-ai-${Date.now()}`,
-            sender: 'ai',
-            content: `رد سريع على: "${messageContent}".`,
-            sources: [{ uri: '#', title: 'مصدر سريع' }]
-        };
-        
-        set(state => ({
-            quickChat: state.quickChat ? {
-                ...state.quickChat,
-                messages: [...state.quickChat.messages, aiResponse],
-                isLoading: false,
-            } : null,
-        }));
     },
-    
-    clearQuickChat: () => set({ quickChat: null }),
+    updateUser: async (userData) => {
+        try {
+            await fetch(`${getApiUrl()}/users/${userData.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData),
+            });
+            set(state => ({
+                users: state.users.map(u => u.id === userData.id ? { ...u, ...userData } : u)
+            }));
+        } catch (error) {
+            toast.error('فشل تحديث الموظف.');
+        }
+    },
+    deleteUser: async (userId) => {
+        try {
+            await fetch(`${getApiUrl()}/users/${userId}`, { method: 'DELETE' });
+            set(state => ({ users: state.users.filter(u => u.id !== userId) }));
+        } catch (error) {
+            toast.error('فشل حذف الموظف.');
+        }
+    },
+    addBranch: async (branchData) => {
+        try {
+            const response = await fetch(`${getApiUrl()}/branches`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(branchData),
+            });
+            if (!response.ok) throw new Error('Failed to add branch');
+            const newBranch = await response.json();
+            set(state => ({ branches: [newBranch, ...state.branches] }));
+        } catch (error) {
+            toast.error('فشل إضافة الفرع.');
+        }
+    },
+    updateBranch: async (branchData) => {
+        try {
+            await fetch(`${getApiUrl()}/branches/${branchData.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(branchData),
+            });
+            set(state => ({
+                branches: state.branches.map(b => b.id === branchData.id ? { ...b, ...branchData } : b)
+            }));
+        } catch (error) {
+            toast.error('فشل تحديث الفرع.');
+        }
+    },
+    deleteBranch: async (branchId) => {
+        try {
+            await fetch(`${getApiUrl()}/branches/${branchId}`, { method: 'DELETE' });
+            set(state => ({ branches: state.branches.filter(b => b.id !== branchId) }));
+        } catch (error) {
+            toast.error('فشل حذف الفرع.');
+        }
+    },
 }));
 
 export default useAppStore;

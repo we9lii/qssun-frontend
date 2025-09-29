@@ -31,7 +31,9 @@ const WorkflowRequestModal: React.FC<WorkflowRequestModalProps> = ({ isOpen }) =
     const onSubmit: SubmitHandler<FormInputs> = data => {
         if (!user) return;
         const now = new Date().toISOString();
-        const newRequest: WorkflowRequest = {
+        // FIX: The `createRequest` function expects two arguments: the request data and the employee ID.
+        // The request data object should also conform to Omit<WorkflowRequest, 'lastModified'>.
+        const requestData: Omit<WorkflowRequest, 'lastModified'> = {
             id: `REQ-${Date.now().toString().slice(-4)}`,
             title: data.title,
             description: data.description,
@@ -39,7 +41,6 @@ const WorkflowRequestModal: React.FC<WorkflowRequestModalProps> = ({ isOpen }) =
             priority: data.priority,
             currentStageId: 1, // The request STARTS IN stage 1
             creationDate: now,
-            lastModified: now,
             stageHistory: [{ // Log the CREATION event itself
                 stageId: 0, // Special ID for creation event
                 stageName: 'إنشاء الطلب',
@@ -49,7 +50,7 @@ const WorkflowRequestModal: React.FC<WorkflowRequestModalProps> = ({ isOpen }) =
                 documents: [],
             }],
         };
-        createRequest(newRequest);
+        createRequest(requestData, user.employeeId);
         reset();
     };
 

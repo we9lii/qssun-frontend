@@ -228,23 +228,3 @@ export interface PermissionAssignment {
     assignedBranch?: string;
     assignmentDate: string;
 }
-
-// --- AI Chat Types ---
-export interface ChatMessageSource {
-    uri: string;
-    title: string;
-}
-
-export interface ChatMessage {
-    id: string;
-    content: string;
-    sender: 'user' | 'ai';
-    sources?: ChatMessageSource[];
-}
-
-export interface ChatSession {
-    id: string;
-    title: string;
-    messages: ChatMessage[];
-    isLoading: boolean;
-}
