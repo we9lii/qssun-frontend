@@ -35,7 +35,7 @@ interface AppState {
     requests: WorkflowRequest[];
     activeWorkflowId: string | null;
     setActiveWorkflowId: (id: string | null) => void;
-    createRequest: (request: WorkflowRequest) => void;
+    createRequest: (request: Omit<WorkflowRequest, 'id'>) => Promise<void>;
     updateRequest: (request: WorkflowRequest, files?: { file: File, type: string, id: string }[]) => Promise<void>;
 
     // Reports State
@@ -146,13 +146,33 @@ const useAppStore = create<AppState>((set, get) => ({
     requests: [],
     activeWorkflowId: null,
     setActiveWorkflowId: (id) => set({ activeWorkflowId: id }),
-    createRequest: (request) => set(state => ({ requests: [request, ...state.requests], isWorkflowModalOpen: false })),
+    createRequest: async (requestData) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/workflow-requests`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData),
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to create request.');
+            }
+            const newRequest = await response.json();
+            set(state => ({
+                requests: [newRequest, ...state.requests],
+                isWorkflowModalOpen: false,
+            }));
+            toast.success('تم إنشاء الطلب بنجاح!');
+        } catch (error: any) {
+            console.error("Failed to create workflow request:", error);
+            toast.error(`فشل إنشاء الطلب: ${error.message}`);
+            // Re-throw the error so the component knows the submission failed
+            throw error;
+        }
+    },
     updateRequest: async (request, files) => {
         const formData = new FormData();
-        // Pass employeeId for secure path creation on the backend
-        const user = get().users.find(u => u.name === request.stageHistory[request.stageHistory.length - 1].processor);
-        const requestWithEmployeeId = { ...request, employeeId: user?.employeeId };
-        formData.append('requestData', JSON.stringify(requestWithEmployeeId));
+        formData.append('requestData', JSON.stringify(request));
 
         if (files) {
             files.forEach(fileData => {
@@ -165,14 +185,23 @@ const useAppStore = create<AppState>((set, get) => ({
                 method: 'PUT',
                 body: formData,
             });
-            if (!response.ok) throw new Error(await response.text());
-            const updatedRequest = await response.json();
+             const responseBody = await response.text();
+            if (!response.ok) {
+                 try {
+                    const errorJson = JSON.parse(responseBody);
+                    throw new Error(errorJson.message || 'An unknown error occurred.');
+                } catch (e) {
+                    throw new Error(responseBody.substring(0, 200));
+                }
+            }
+            const updatedRequest = JSON.parse(responseBody);
             set(state => ({
                 requests: state.requests.map(r => r.id === updatedRequest.id ? updatedRequest : r),
             }));
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to update workflow request:", error);
-            toast.error('فشل تحديث طلب سير العمل.');
+            toast.error(`فشل تحديث طلب سير العمل: ${error.message}`);
+            throw error; // Re-throw to be caught in component
         }
     },
 

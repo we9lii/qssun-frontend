@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -25,34 +25,47 @@ const WorkflowRequestModal: React.FC<WorkflowRequestModalProps> = ({ isOpen }) =
     const { t, user } = useAppContext();
     const { createRequest, setWorkflowModalOpen } = useAppStore();
     const { register, handleSubmit, reset, formState: { errors } } = useForm<FormInputs>();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleClose = () => {
         setWorkflowModalOpen(false);
     };
 
-    const onSubmit: SubmitHandler<FormInputs> = data => {
+    const onSubmit: SubmitHandler<FormInputs> = async (data) => {
         if (!user) return;
+        setIsSubmitting(true);
         const now = new Date().toISOString();
-        const newRequest: WorkflowRequest = {
-            id: `REQ-${Date.now().toString().slice(-4)}`,
+        
+        // This is now Omit<WorkflowRequest, 'id'>
+        const newRequestData = {
             title: data.title,
             description: data.description,
             type: data.type,
             priority: data.priority,
-            currentStageId: 1, // The request STARTS IN stage 1
+            currentStageId: 1,
             creationDate: now,
             lastModified: now,
-            stageHistory: [{ // Log the CREATION event itself
-                stageId: 0, // Special ID for creation event
+            stageHistory: [{
+                stageId: 0,
                 stageName: 'إنشاء الطلب',
                 processor: user.name,
                 timestamp: now,
                 comment: 'تم إنشاء الطلب وبدأ سير العمل.',
                 documents: [],
             }],
+            employeeId: user.employeeId,
         };
-        createRequest(newRequest);
-        reset();
+
+        try {
+            await createRequest(newRequestData);
+            reset();
+            // The store now handles closing the modal on success
+        } catch (error) {
+            // Error is already toasted in the store, just need to handle UI state
+            console.error("Submission failed, keeping modal open.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (!isOpen) return null;
@@ -93,8 +106,8 @@ const WorkflowRequestModal: React.FC<WorkflowRequestModalProps> = ({ isOpen }) =
             </div>
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={handleClose}>إلغاء</Button>
-            <Button type="submit">{t('saveRequest')}</Button>
+            <Button type="button" variant="secondary" onClick={handleClose} disabled={isSubmitting}>إلغاء</Button>
+            <Button type="submit" isLoading={isSubmitting}>{t('saveRequest')}</Button>
           </CardFooter>
         </form>
       </div>
