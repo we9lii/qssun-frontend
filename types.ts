@@ -48,6 +48,12 @@ export enum ReportStatus {
 }
 
 // --- Report Detail Structures ---
+export interface SalesCustomerFile {
+    id: string;
+    url: string;
+    fileName: string;
+    file?: File; // For frontend use during upload
+}
 export interface SalesCustomer {
     id: number;
     name: string;
@@ -55,13 +61,19 @@ export interface SalesCustomer {
     region: string;
     requestType: string;
     notes: string;
-    files: { id: string; file: File }[];
+    files: SalesCustomerFile[];
 }
 
 export interface SalesDetails {
     totalCustomers: number;
     serviceType: string;
     customers: SalesCustomer[];
+}
+
+export interface MaintenanceImage {
+    url: string;
+    fileName: string;
+    file?: File; // For frontend use during upload
 }
 
 export interface MaintenanceDetails {
@@ -72,8 +84,21 @@ export interface MaintenanceDetails {
     equipment: string;
     duration: number;
     notes: string;
-    beforeImages: File[];
-    afterImages: File[];
+    beforeImages: MaintenanceImage[];
+    afterImages: MaintenanceImage[];
+}
+
+export interface ProjectUpdateFile {
+    url: string;
+    fileName: string;
+    file?: File; // For frontend use during upload
+}
+export interface ProjectUpdate {
+    id: string;
+    label: string;
+    completed: boolean;
+    files?: ProjectUpdateFile[];
+    timestamp?: string;
 }
 
 export interface ProjectDetails {
@@ -90,10 +115,16 @@ export interface InquiryDetails {
 // --- End Report Detail Structures ---
 
 // --- Report Evaluation ---
+export interface ReportEvaluationFile {
+    id: string;
+    url: string;
+    fileName: string;
+    file?: File; // For frontend use during upload
+}
 export interface ReportEvaluation {
     rating: number;
     comment: string;
-    files: { id: string; file: File }[];
+    files: ReportEvaluationFile[];
 }
 
 export interface Report {
@@ -113,14 +144,6 @@ export interface Report {
     }[];
 }
 
-export interface ProjectUpdate {
-    id: string;
-    label: string;
-    completed: boolean;
-    files?: File[];
-    timestamp?: string;
-}
-
 export interface Branch {
     id: string;
     name: string;
@@ -131,12 +154,6 @@ export interface Branch {
 }
 
 export type DocumentType = 'Price Quote' | 'Purchase Order' | 'Compliance Certificate' | 'Shipping Certificate' | 'Invoice' | 'Customs Document' | 'Other' | 'Bill of Lading' | 'Commercial Invoice' | 'Packing List' | 'Certificate of Origin';
-
-export interface DocumentFile {
-    file: File;
-    type: DocumentType;
-    uploadDate: string;
-}
 
 // --- NEW Advanced Workflow System Types ---
 
@@ -149,9 +166,11 @@ export interface WorkflowStage {
 
 export interface WorkflowDocument {
     id: string;
-    file: File;
+    url: string;
+    fileName: string;
     type: DocumentType;
     uploadDate: string;
+    file?: File; // For frontend use during upload
 }
 
 export interface StageHistoryItem {
@@ -182,6 +201,8 @@ export interface WorkflowRequest {
     expectedDeliveryDate?: string;
     lastModified: string;
     stageHistory: StageHistoryItem[];
+    // Add employeeId to be accessible in the store
+    employeeId?: string; 
 }
 
 // --- Audit Log Types ---
@@ -227,4 +248,24 @@ export interface PermissionAssignment {
     role: Role;
     assignedBranch?: string;
     assignmentDate: string;
+}
+
+// --- AI Chat Types ---
+export interface ChatMessageSource {
+    uri: string;
+    title: string;
+}
+
+export interface ChatMessage {
+    id: string;
+    content: string;
+    sender: 'user' | 'ai';
+    sources?: ChatMessageSource[];
+}
+
+export interface ChatSession {
+    id: string;
+    title: string;
+    messages: ChatMessage[];
+    isLoading: boolean;
 }

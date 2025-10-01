@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Wrench, Settings, Eye, CheckCircle, MapPin, Camera, Upload, Trash2, Clock, Hammer, FileText } from 'lucide-react';
+import { Wrench, Settings, Eye, CheckCircle, MapPin, Camera, Upload, Trash2, Clock, Hammer, FileText, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Textarea } from '../../components/ui/Textarea';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { useAppContext } from '../../hooks/useAppContext';
-import { Report, ReportType, ReportStatus, MaintenanceDetails } from '../../types';
+import { Report, ReportType, ReportStatus, MaintenanceDetails, MaintenanceImage } from '../../types';
 import useAppStore from '../../store/useAppStore';
 import toast from 'react-hot-toast';
 
@@ -34,8 +34,8 @@ interface MaintenanceReportsScreenProps {
 const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ reportToEdit }) => {
     const { user } = useAppContext();
     const { addReport, updateReport, setActiveView } = useAppStore();
-    const [beforeImages, setBeforeImages] = useState<File[]>([]);
-    const [afterImages, setAfterImages] = useState<File[]>([]);
+    const [beforeImages, setBeforeImages] = useState<MaintenanceImage[]>([]);
+    const [afterImages, setAfterImages] = useState<MaintenanceImage[]>([]);
     const [activeService, setActiveService] = useState<ServiceType>('repair');
     const [activeStatus, setActiveStatus] = useState<WorkStatus>('in_progress');
     const [customerName, setCustomerName] = useState('');
@@ -43,11 +43,12 @@ const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ rep
     const [equipment, setEquipment] = useState('');
     const [duration, setDuration] = useState('');
     const [notes, setNotes] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
     const isEditMode = !!reportToEdit;
 
     useEffect(() => {
-        if (isEditMode) {
+        if (isEditMode && reportToEdit) {
             const details = reportToEdit.details as MaintenanceDetails;
             setActiveService(details.serviceType);
             setActiveStatus(details.workStatus);
@@ -56,11 +57,9 @@ const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ rep
             setEquipment(details.equipment);
             setDuration(details.duration.toString());
             setNotes(details.notes);
-            // Note: File editing is not handled in this implementation for simplicity
             setBeforeImages(details.beforeImages || []);
             setAfterImages(details.afterImages || []);
         } else {
-            // Reset form for new report
             setActiveService('repair');
             setActiveStatus('in_progress');
             setCustomerName('');
@@ -74,13 +73,18 @@ const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ rep
     }, [reportToEdit, isEditMode]);
 
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<File[]>>) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<MaintenanceImage[]>>) => {
         if (e.target.files) {
-            setter(prev => [...prev, ...Array.from(e.target.files!)]);
+            const newImages: MaintenanceImage[] = Array.from(e.target.files).map(file => ({
+                file: file,
+                fileName: file.name,
+                url: URL.createObjectURL(file) // For temporary preview
+            }));
+            setter(prev => [...prev, ...newImages]);
         }
     };
 
-    const removeImage = (index: number, setter: React.Dispatch<React.SetStateAction<File[]>>) => {
+    const removeImage = (index: number, setter: React.Dispatch<React.SetStateAction<MaintenanceImage[]>>) => {
         setter(prev => prev.filter((_, i) => i !== index));
     };
 
@@ -101,55 +105,70 @@ const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ rep
         }
     };
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!user) return;
+        setIsSaving(true);
         
-        const reportDetails: MaintenanceDetails = {
-            serviceType: activeService,
-            workStatus: activeStatus,
-            customerName: customerName,
-            location: location,
-            equipment: equipment,
-            duration: parseFloat(duration),
-            notes: notes,
-            beforeImages: beforeImages,
-            afterImages: afterImages,
-        };
+        try {
+            if (isEditMode && reportToEdit) {
+                const reportDetails: MaintenanceDetails = {
+                    ...reportToEdit.details,
+                    serviceType: activeService,
+                    workStatus: activeStatus,
+                    customerName,
+                    location,
+                    equipment,
+                    duration: parseFloat(duration) || 0,
+                    notes,
+                };
+                const updatedReport: Report = {
+                    ...reportToEdit,
+                    details: reportDetails,
+                    modifications: [
+                        ...(reportToEdit.modifications || []),
+                        { modifiedBy: user.name, timestamp: new Date().toISOString() }
+                    ]
+                };
+                await updateReport(updatedReport);
+                toast.success('تم تحديث التقرير بنجاح!');
+            } else {
+                const reportDetails: MaintenanceDetails = {
+                    serviceType: activeService,
+                    workStatus: activeStatus,
+                    customerName,
+                    location,
+                    equipment,
+                    duration: parseFloat(duration) || 0,
+                    notes,
+                    beforeImages: beforeImages,
+                    afterImages: afterImages,
+                };
 
-        if (isEditMode) {
-            const updatedReport: Report = {
-                ...reportToEdit,
-                details: reportDetails,
-                modifications: [
-                    ...(reportToEdit.modifications || []),
-                    { modifiedBy: user.name, timestamp: new Date().toISOString() }
-                ]
-            };
-            updateReport(updatedReport, user.role);
-            toast.success('تم تحديث التقرير بنجاح!');
-        } else {
-            const newReport: Omit<Report, 'id'> = {
-                employeeId: user.employeeId,
-                employeeName: user.name,
-                branch: user.branch,
-                department: user.department,
-                type: ReportType.Maintenance,
-                date: new Date().toISOString(),
-                status: ReportStatus.Pending,
-                details: reportDetails
-            };
-            addReport(newReport);
-            toast.success('تم حفظ تقرير الصيانة بنجاح!');
+                const newReport: Omit<Report, 'id'> = {
+                    employeeId: user.employeeId,
+                    employeeName: user.name,
+                    branch: user.branch,
+                    department: user.department,
+                    type: ReportType.Maintenance,
+                    date: new Date().toISOString(),
+                    status: ReportStatus.Pending,
+                    details: reportDetails,
+                };
+                await addReport(newReport);
+                toast.success('تم حفظ تقرير الصيانة بنجاح!');
+            }
+            
+            setActiveView('log');
+        } finally {
+            setIsSaving(false);
         }
-        
-        setActiveView('log');
     };
 
     const ImageUploadArea: React.FC<{
         id: string;
         title: string;
-        images: File[];
+        images: MaintenanceImage[];
         onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
         onRemove: (index: number) => void;
     }> = ({ id, title, images, onFileChange, onRemove }) => (
@@ -165,9 +184,9 @@ const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ rep
                 <input type="file" id={id} multiple accept="image/*" className="hidden" onChange={onFileChange} />
             </div>
             <div className="grid grid-cols-3 gap-2 mt-2">
-                {images.map((file, index) => (
+                {images.map((img, index) => (
                     <div key={index} className="relative group">
-                        <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-24 object-cover rounded-md" />
+                        <img src={img.url} alt={img.fileName} className="w-full h-24 object-cover rounded-md" />
                         <button onClick={() => onRemove(index)} className="absolute top-1 right-1 bg-destructive/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Trash2 size={14} />
                         </button>
@@ -249,13 +268,21 @@ const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ rep
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <ImageUploadArea id="before-upload" title="صور قبل العمل" images={beforeImages} onFileChange={(e) => handleFileChange(e, setBeforeImages)} onRemove={(i) => removeImage(i, setBeforeImages)} />
-                            <ImageUploadArea id="after-upload" title="صور بعد العمل" images={afterImages} onFileChange={(e) => handleFileChange(e, setAfterImages)} onRemove={(i) => removeImage(i, setAfterImages)} />
-                        </div>
+                        {!isEditMode ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <ImageUploadArea id="before-upload" title="صور قبل العمل" images={beforeImages} onFileChange={(e) => handleFileChange(e, setBeforeImages)} onRemove={(i) => removeImage(i, setBeforeImages)} />
+                                <ImageUploadArea id="after-upload" title="صور بعد العمل" images={afterImages} onFileChange={(e) => handleFileChange(e, setAfterImages)} onRemove={(i) => removeImage(i, setAfterImages)} />
+                            </div>
+                        ) : (
+                             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-lg flex items-center gap-3">
+                                <Info size={20} />
+                                <p className="text-sm">لا يمكن تعديل الصور المرفقة في وضع التحرير. لعرض الصور الحالية، يرجى الرجوع إلى تفاصيل التقرير.</p>
+                            </div>
+                        )}
+                        
 
                         <div className="flex justify-end pt-4 border-t">
-                            <Button type="submit" size="lg">{isEditMode ? "حفظ التعديلات" : "حفظ التقرير"}</Button>
+                            <Button type="submit" size="lg" isLoading={isSaving}>{isEditMode ? "حفظ التعديلات" : "حفظ التقرير"}</Button>
                         </div>
                     </form>
                 </CardContent>

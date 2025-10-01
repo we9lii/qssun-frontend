@@ -4,18 +4,19 @@ import { CardHeader, CardTitle, CardContent, CardFooter } from '../../components
 import { Button } from '../../components/ui/Button';
 import { Textarea } from '../../components/ui/Textarea';
 import { StarRating } from '../../components/ui/StarRating';
-import { Report } from '../../types';
+import { Report, ReportEvaluationFile } from '../../types';
 
 interface EvaluationModalProps {
   report: Report | null;
   onClose: () => void;
-  onSave: (updatedReport: Report) => void;
+  onSave: (updatedReport: Report) => Promise<void>;
 }
 
 const EvaluationModal: React.FC<EvaluationModalProps> = ({ report, onClose, onSave }) => {
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
-    const [files, setFiles] = useState<{ id: string; file: File }[]>([]);
+    const [files, setFiles] = useState<ReportEvaluationFile[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -30,8 +31,12 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({ report, onClose, onSa
     
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            // FIX: Explicitly type 'file' as File to prevent it from being inferred as 'unknown'.
-            const newFiles = Array.from(e.target.files).map((file: File) => ({ id: `${file.name}-${Date.now()}`, file }));
+            const newFiles: ReportEvaluationFile[] = Array.from(e.target.files).map(file => ({ 
+                id: `${file.name}-${Date.now()}`,
+                file: file,
+                fileName: file.name,
+                url: '' // Will be populated by backend
+            }));
             setFiles(prev => [...prev, ...newFiles]);
         }
     };
@@ -40,7 +45,8 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({ report, onClose, onSa
         setFiles(prev => prev.filter(f => f.id !== fileId));
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        setIsSaving(true);
         const updatedReport: Report = {
             ...report,
             evaluation: {
@@ -49,7 +55,8 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({ report, onClose, onSa
                 files
             }
         };
-        onSave(updatedReport);
+        await onSave(updatedReport);
+        setIsSaving(false);
     };
 
     const ratingDescriptions = ["ضعيف جداً", "ضعيف", "متوسط", "جيد", "ممتاز"];
@@ -79,7 +86,7 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({ report, onClose, onSa
                          <div className="space-y-2 max-h-32 overflow-y-auto p-2 bg-slate-100 dark:bg-slate-700/50 rounded-md">
                             {files.length > 0 ? files.map(f => (
                                 <div key={f.id} className="flex items-center justify-between bg-white dark:bg-slate-800 p-1.5 rounded text-xs">
-                                    <span className="truncate">{f.file.name}</span>
+                                    <span className="truncate">{f.fileName}</span>
                                     <button onClick={() => removeFile(f.id)} className="text-destructive hover:bg-destructive/10 p-1 rounded-full"><Trash2 size={12} /></button>
                                 </div>
                             )) : <p className="text-xs text-slate-500 text-center">لا توجد مرفقات.</p>}
@@ -87,8 +94,8 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({ report, onClose, onSa
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
-                    <Button variant="secondary" onClick={onClose}>إغلاق</Button>
-                    <Button onClick={handleSave}>حفظ التقييم</Button>
+                    <Button variant="secondary" onClick={onClose} disabled={isSaving}>إغلاق</Button>
+                    <Button onClick={handleSave} isLoading={isSaving}>حفظ التقييم</Button>
                 </CardFooter>
             </div>
         </div>

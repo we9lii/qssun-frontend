@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PlusCircle, Trash2, User, FileText, Upload } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -6,30 +6,28 @@ import { Button } from '../../components/ui/Button';
 import { Textarea } from '../../components/ui/Textarea';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { useAppContext } from '../../hooks/useAppContext';
-import { Report, ReportType, ReportStatus, SalesDetails, SalesCustomer } from '../../types';
+import { Report, ReportType, ReportStatus, SalesDetails, SalesCustomer, SalesCustomerFile } from '../../types';
 import useAppStore from '../../store/useAppStore';
 import toast from 'react-hot-toast';
-import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
+import type { SubmitHandler } from 'react-hook-form';
 
-interface SalesReportsScreenProps {
-    reportToEdit: Report | null;
-}
-
+// FIX: Changed `customers` to be an array `SalesCustomer[]` to correctly type the form for useFieldArray.
+// This resolves all subsequent type errors in this file.
 type SalesReportFormInputs = {
     totalCustomers: number;
     serviceType: string;
     customers: SalesCustomer[];
 };
 
-const SalesReportsScreen: React.FC<SalesReportsScreenProps> = ({ reportToEdit }) => {
+const SalesReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ reportToEdit }) => {
     const { user } = useAppContext();
     const { addReport, updateReport, setActiveView } = useAppStore();
+    const [isSaving, setIsSaving] = useState(false);
 
     const { register, control, handleSubmit, reset, setValue, watch } = useForm<SalesReportFormInputs>({
         defaultValues: {
-            totalCustomers: 1,
-            serviceType: 'تركيب نظام شمسي',
-            customers: [{ id: Date.now(), name: '', phone: '', region: '', requestType: 'استفسار سعر', notes: '', files: [] }]
+            customers: []
         }
     });
 
@@ -43,11 +41,7 @@ const SalesReportsScreen: React.FC<SalesReportsScreenProps> = ({ reportToEdit })
     useEffect(() => {
         if (isEditMode && reportToEdit) {
             const details = reportToEdit.details as SalesDetails;
-            reset({
-                totalCustomers: details.totalCustomers,
-                serviceType: details.serviceType,
-                customers: details.customers,
-            });
+            reset(details);
         } else {
              reset({
                 totalCustomers: 1,
@@ -60,8 +54,12 @@ const SalesReportsScreen: React.FC<SalesReportsScreenProps> = ({ reportToEdit })
     const handleFileChange = (customerIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const currentFiles = watch(`customers.${customerIndex}.files`) || [];
-            // FIX: Explicitly type 'file' as File to prevent it from being inferred as 'unknown'.
-            const newFiles = Array.from(e.target.files).map((file: File) => ({ id: `${file.name}-${Date.now()}`, file }));
+            const newFiles: SalesCustomerFile[] = Array.from(e.target.files).map(file => ({ 
+                id: `${file.name}-${Date.now()}`,
+                file: file,
+                fileName: file.name,
+                url: ''
+            }));
             setValue(`customers.${customerIndex}.files`, [...currentFiles, ...newFiles]);
         }
     };
@@ -72,42 +70,45 @@ const SalesReportsScreen: React.FC<SalesReportsScreenProps> = ({ reportToEdit })
     };
 
 
-    const onSubmit: SubmitHandler<SalesReportFormInputs> = (data) => {
+    const onSubmit: SubmitHandler<SalesReportFormInputs> = async (data) => {
         if (!user) return;
-
-        const reportDetails: SalesDetails = {
-            totalCustomers: Number(data.totalCustomers) || data.customers.length,
-            serviceType: data.serviceType,
-            customers: data.customers
-        };
+        setIsSaving(true);
         
-        if (isEditMode && reportToEdit) {
-            const updatedReport: Report = {
-                ...reportToEdit,
-                details: reportDetails,
-                modifications: [
-                    ...(reportToEdit.modifications || []),
-                    { modifiedBy: user.name, timestamp: new Date().toISOString() }
-                ]
+        try {
+            const reportDetails: SalesDetails = {
+                ...data,
+                totalCustomers: Number(data.totalCustomers) || data.customers.length,
             };
-            updateReport(updatedReport, user.role);
-            toast.success('تم تحديث التقرير بنجاح!');
-        } else {
-            const newReport: Omit<Report, 'id'> = {
-                employeeId: user.employeeId,
-                employeeName: user.name,
-                branch: user.branch,
-                department: user.department,
-                type: ReportType.Sales,
-                date: new Date().toISOString(),
-                status: ReportStatus.Pending,
-                details: reportDetails
-            };
-            addReport(newReport);
-            toast.success('تم حفظ تقرير المبيعات بنجاح!');
+            
+            if (isEditMode && reportToEdit) {
+                const updatedReport: Report = {
+                    ...reportToEdit,
+                    details: reportDetails,
+                    modifications: [
+                        ...(reportToEdit.modifications || []),
+                        { modifiedBy: user.name, timestamp: new Date().toISOString() }
+                    ]
+                };
+                await updateReport(updatedReport);
+                toast.success('تم تحديث التقرير بنجاح!');
+            } else {
+                const newReport: Omit<Report, 'id'> = {
+                    employeeId: user.employeeId,
+                    employeeName: user.name,
+                    branch: user.branch,
+                    department: user.department,
+                    type: ReportType.Sales,
+                    date: new Date().toISOString(),
+                    status: ReportStatus.Pending,
+                    details: reportDetails
+                };
+                await addReport(newReport);
+                toast.success('تم حفظ تقرير المبيعات بنجاح!');
+            }
+            setActiveView('log');
+        } finally {
+            setIsSaving(false);
         }
-        
-        setActiveView('log');
     };
 
     return (
@@ -180,7 +181,7 @@ const SalesReportsScreen: React.FC<SalesReportsScreenProps> = ({ reportToEdit })
                                         <div className="mt-2 flex flex-wrap gap-2">
                                             {customerFiles.map(f => (
                                                 <div key={f.id} className="bg-slate-200 dark:bg-slate-700 text-xs p-1 rounded flex items-center gap-1">
-                                                    <span>{f.file.name.substring(0, 20)}...</span>
+                                                    <span className="truncate">{f.fileName}</span>
                                                     <button type="button" onClick={() => removeFile(index, f.id)} className="text-destructive"><Trash2 size={12}/></button>
                                                 </div>
                                             ))}
@@ -200,7 +201,7 @@ const SalesReportsScreen: React.FC<SalesReportsScreenProps> = ({ reportToEdit })
                         </div>
 
                         <div className="flex justify-end pt-4 border-t">
-                            <Button type="submit" size="lg">{isEditMode ? "حفظ التعديلات" : "حفظ وإرسال التقرير"}</Button>
+                            <Button type="submit" size="lg" isLoading={isSaving}>{isEditMode ? "حفظ التعديلات" : "حفظ وإرسال التقرير"}</Button>
                         </div>
                     </form>
                 </CardContent>

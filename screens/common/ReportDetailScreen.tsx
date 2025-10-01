@@ -56,14 +56,44 @@ const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
         case ReportType.Maintenance:
             const maintDetails = report.details as MaintenanceDetails;
              return (
-                <div className="grid grid-cols-2 gap-4">
-                    <InfoItem label="اسم العميل" value={maintDetails.customerName} />
-                    <InfoItem label="نوع الخدمة" value={maintDetails.serviceType} />
-                    <InfoItem label="حالة العمل" value={maintDetails.workStatus} />
-                    <InfoItem label="المدة (ساعات)" value={maintDetails.duration} />
-                    <InfoItem label="الموقع" value={maintDetails.location} isFullWidth />
-                    <InfoItem label="المعدات" value={maintDetails.equipment} isFullWidth />
-                    <InfoItem label="الملاحظات" value={maintDetails.notes} isFullWidth />
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <InfoItem label="اسم العميل" value={maintDetails.customerName} />
+                        <InfoItem label="نوع الخدمة" value={maintDetails.serviceType} />
+                        <InfoItem label="حالة العمل" value={maintDetails.workStatus} />
+                        <InfoItem label="المدة (ساعات)" value={maintDetails.duration} />
+                        <InfoItem label="الموقع" value={maintDetails.location} isFullWidth />
+                        <InfoItem label="المعدات" value={maintDetails.equipment} isFullWidth />
+                        <InfoItem label="الملاحظات" value={maintDetails.notes} isFullWidth />
+                    </div>
+                    
+                    {maintDetails.beforeImages && maintDetails.beforeImages.length > 0 && (
+                        <div>
+                            <h4 className="font-semibold pt-4 border-t mt-4">صور قبل العمل</h4>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
+                                {/* FIX: Access the `url` property from the image object. */}
+                                {maintDetails.beforeImages.map((imgSrc, index) => (
+                                    <a key={index} href={imgSrc.url} target="_blank" rel="noopener noreferrer" className="block">
+                                        <img src={imgSrc.url} alt={`Before ${index + 1}`} className="w-full h-24 object-cover rounded-md" />
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {maintDetails.afterImages && maintDetails.afterImages.length > 0 && (
+                        <div>
+                            <h4 className="font-semibold pt-4 border-t mt-4">صور بعد العمل</h4>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
+                                {/* FIX: Access the `url` property from the image object. */}
+                                {maintDetails.afterImages.map((imgSrc, index) => (
+                                     <a key={index} href={imgSrc.url} target="_blank" rel="noopener noreferrer" className="block">
+                                        <img src={imgSrc.url} alt={`After ${index + 1}`} className="w-full h-24 object-cover rounded-md" />
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         case ReportType.Project:

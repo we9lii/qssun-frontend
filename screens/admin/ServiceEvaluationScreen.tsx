@@ -23,9 +23,10 @@ const ServiceEvaluationScreen: React.FC = () => {
     const { reports, updateReport, setActiveView } = useAppStore();
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
-    const handleSaveEvaluation = (updatedReport: Report) => {
+    // FIX: Made function async and fixed argument count for updateReport.
+    const handleSaveEvaluation = async (updatedReport: Report) => {
         if (!user) return;
-        updateReport(updatedReport, user.role);
+        await updateReport(updatedReport);
         setSelectedReport(null);
         toast.success('تم حفظ التقييم وإرسال إشعار للموظف!');
     };

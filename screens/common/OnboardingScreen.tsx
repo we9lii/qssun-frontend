@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { useForm, SubmitHandler } from 'react-hook-form';
+// FIX: Separated value and type imports for react-hook-form
+import { useForm } from 'react-hook-form';
+import type { SubmitHandler } from 'react-hook-form';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import toast from 'react-hot-toast';
 import { useAppContext } from '../../hooks/useAppContext';
+import { API_BASE_URL } from '../../config'; // Import from the central config file
 
-interface OnboardingScreenProps {
-    onComplete: () => void;
-}
+// The onComplete prop is no longer needed as the component relies on the global context update.
+interface OnboardingScreenProps {}
 
 type OnboardingFormInputs = {
     name: string;
@@ -17,7 +19,7 @@ type OnboardingFormInputs = {
     confirmPassword: string;
 };
 
-const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
+const OnboardingScreen: React.FC<OnboardingScreenProps> = () => {
     const { user, updateUser } = useAppContext();
     const [isLoading, setIsLoading] = useState(false);
     const { register, handleSubmit, watch, formState: { errors } } = useForm<OnboardingFormInputs>({
@@ -28,26 +30,55 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
     });
 
     if (!user) {
-        // This should not happen if App.tsx logic is correct,
-        // but as a safeguard we prevent rendering.
         return null;
     }
 
-    const onSubmit: SubmitHandler<OnboardingFormInputs> = (data) => {
+    const onSubmit: SubmitHandler<OnboardingFormInputs> = async (data) => {
         setIsLoading(true);
-        // Simulate a save operation
-        setTimeout(() => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/users/profile`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.id,
+                    name: data.name,
+                    phone: data.phone,
+                    password: data.password // Sending plain text password, backend should hash it
+                })
+            });
+
+            // Check if the response content type is JSON before parsing
+            const contentType = response.headers.get("content-type");
+            if (!response.ok) {
+                let errorData = { message: 'فشل تحديث الملف الشخصي.' };
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    errorData = await response.json();
+                } else {
+                     console.error("Non-JSON error response:", await response.text());
+                }
+                throw new Error(errorData.message);
+            }
+            
+            toast.success('تم تحديث ملفك بنجاح! أهلاً بك.');
+            // If API call is successful, update the global user context.
+            // The App component will automatically re-render and show the dashboard.
             updateUser({
                 name: data.name,
                 phone: data.phone,
-                isFirstLogin: false, // Update the flag to move to the main app
+                isFirstLogin: false, // This is the key change to move past this screen
             });
-            toast.success('تم تحديث ملفك بنجاح! أهلاً بك.');
-            // The state update in updateUser will cause App.tsx to re-render and show the dashboard.
-            // onComplete is kept for prop consistency but is no longer essential.
-            onComplete(); 
+
+        } catch (error: any) {
+            console.error('Onboarding error:', error);
+            // Handle cases where the error is not a valid JSON (like HTML error pages)
+            if (error instanceof SyntaxError) {
+                 toast.error('حدث خطأ غير متوقع من الخادم.');
+            } else {
+                toast.error(error.message || 'حدث خطأ غير متوقع.');
+            }
+        } finally {
             setIsLoading(false);
-        }, 500);
+        }
     };
 
     return (

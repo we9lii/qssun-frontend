@@ -10,12 +10,13 @@ const viewHierarchy: { [key: string]: { parent?: string; labelKey: string } } = 
     sales: { parent: 'dashboard', labelKey: 'salesReports' },
     maintenance: { parent: 'dashboard', labelKey: 'maintenanceReports' },
     projects: { parent: 'dashboard', labelKey: 'projectReports' },
-    createProjectReport: { parent: 'projects', labelKey: 'projectReports' },
-    createQuotation: { parent: 'projects', labelKey: 'projectReports' },
+    createProjectReport: { parent: 'projects', labelKey: 'createProjectReport' },
+    createQuotation: { parent: 'projects', labelKey: 'createQuotation' },
     log: { parent: 'dashboard', labelKey: 'reportsLog' },
     workflow: { parent: 'dashboard', labelKey: 'importExport' },
     profile: { parent: 'dashboard', labelKey: 'profile' },
     reportDetail: { parent: 'log', labelKey: 'reportsLog' },
+    techSupport: { parent: 'dashboard', labelKey: 'techSupport' },
 
     // Admin
     allReports: { parent: 'dashboard', labelKey: 'allReports' },
@@ -25,7 +26,6 @@ const viewHierarchy: { [key: string]: { parent?: string; labelKey: string } } = 
     manageBranches: { parent: 'dashboard', labelKey: 'manageBranches' },
     manageNotifications: { parent: 'dashboard', labelKey: 'manageNotifications' },
     managePermissions: { parent: 'dashboard', labelKey: 'managePermissions' },
-    componentsShowcase: { parent: 'dashboard', labelKey: 'componentsShowcase' },
 };
 
 export const Breadcrumbs: React.FC = () => {

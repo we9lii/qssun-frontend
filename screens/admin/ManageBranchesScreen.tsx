@@ -5,7 +5,9 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Branch } from '../../types';
 import { useAppContext } from '../../hooks/useAppContext';
-import { useForm, SubmitHandler } from 'react-hook-form';
+// FIX: Separated value and type imports for react-hook-form
+import { useForm } from 'react-hook-form';
+import type { SubmitHandler } from 'react-hook-form';
 import useAppStore from '../../store/useAppStore';
 import toast from 'react-hot-toast';
 import { EmptyState } from '../../components/common/EmptyState';

@@ -6,7 +6,9 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { User, Role } from '../../types';
-import { useForm, SubmitHandler } from 'react-hook-form';
+// FIX: Separated value and type imports for react-hook-form
+import { useForm } from 'react-hook-form';
+import type { SubmitHandler } from 'react-hook-form';
 import useAppStore from '../../store/useAppStore';
 import { EmptyState } from '../../components/common/EmptyState';
 import { Pagination } from '../../components/common/Pagination';
@@ -21,8 +23,9 @@ const EmployeeFormModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   employee: User | null;
-  onSave: (data: any) => void;
-}> = ({ isOpen, onClose, employee, onSave }) => {
+  onSave: (data: any) => Promise<void>;
+  isSaving: boolean;
+}> = ({ isOpen, onClose, employee, onSave, isSaving }) => {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<EmployeeFormInputs>();
   const { branches } = useAppStore();
 
@@ -31,10 +34,10 @@ const EmployeeFormModal: React.FC<{
         if (employee) {
             reset(employee);
         } else {
-            reset({ role: Role.Employee, branch: 'الرياض', department: 'الفني', employeeType: 'Technician', hasImportExportPermission: false, name: '', employeeId: '', email: '', phone: '', position: '' });
+            reset({ role: Role.Employee, branch: branches[0]?.name || '', department: 'الفني', employeeType: 'Technician', hasImportExportPermission: false, name: '', employeeId: '', email: '', phone: '', position: '' });
         }
     }
-  }, [employee, isOpen, reset]);
+  }, [employee, isOpen, reset, branches]);
   
   const onSubmit: SubmitHandler<EmployeeFormInputs> = data => {
     if (employee) {
@@ -107,6 +110,13 @@ const EmployeeFormModal: React.FC<{
                         <option value="Admin">إداري</option>
                     </select>
                 </div>
+                 <div>
+                    <label className="block text-sm font-medium mb-1">الصلاحية</label>
+                    <select {...register("role")} className="w-full rounded-md border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 py-2 px-3 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm">
+                        <option value={Role.Admin}>Admin</option>
+                        <option value={Role.Employee}>Employee</option>
+                    </select>
+                </div>
                 <div className="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="hasImportExportPermission" {...register("hasImportExportPermission")} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"/>
                     <label htmlFor="hasImportExportPermission" className="text-sm font-medium">صلاحية الاستيراد والتصدير</label>
@@ -114,8 +124,8 @@ const EmployeeFormModal: React.FC<{
             </div>
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>إلغاء</Button>
-            <Button type="submit">حفظ</Button>
+            <Button type="button" variant="secondary" onClick={onClose} disabled={isSaving}>إلغاء</Button>
+            <Button type="submit" isLoading={isSaving}>حفظ</Button>
           </CardFooter>
         </form>
       </div>
@@ -137,19 +147,25 @@ const ManageEmployeesScreen: React.FC = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const handleSaveEmployee = (data: any) => {
-    if (editingEmployee) {
-        updateUser(data);
-        toast.success('تم تحديث الموظف بنجاح!');
-    } else {
-        addUser(data);
-        toast.success('تم إنشاء الموظف بنجاح!');
+  const handleSaveEmployee = async (data: any) => {
+    setIsSaving(true);
+    try {
+        if (editingEmployee) {
+            await updateUser(data);
+            toast.success('تم تحديث الموظف بنجاح!');
+        } else {
+            await addUser(data);
+            toast.success('تم إنشاء الموظف بنجاح!');
+        }
+        setModalOpen(false);
+        setEditingEmployee(null);
+    } finally {
+        setIsSaving(false);
     }
-    setModalOpen(false);
-    setEditingEmployee(null);
   };
 
   const handleAddClick = () => {
@@ -163,8 +179,8 @@ const ManageEmployeesScreen: React.FC = () => {
   };
 
   const handleDeleteClick = (employeeId: string) => {
-    openConfirmation('هل أنت متأكد من حذف هذا الموظف؟', () => {
-        deleteUser(employeeId);
+    openConfirmation('هل أنت متأكد من حذف هذا الموظف؟', async () => {
+        await deleteUser(employeeId);
         toast.success('تم حذف الموظف بنجاح!');
     });
   };
@@ -292,6 +308,7 @@ const ManageEmployeesScreen: React.FC = () => {
         onClose={() => setModalOpen(false)}
         employee={editingEmployee}
         onSave={handleSaveEmployee}
+        isSaving={isSaving}
       />
     </>
   );

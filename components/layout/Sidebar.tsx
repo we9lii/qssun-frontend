@@ -64,7 +64,6 @@ export const Sidebar: React.FC = () => {
         { id: 'manageEmployees', label: t('manageEmployees'), icon: Users },
         { id: 'manageBranches', label: t('manageBranches'), icon: Building2 },
         { id: 'profile', label: t('profile'), icon: UserIcon },
-        { id: 'componentsShowcase', label: t('componentsShowcase'), icon: LayoutGrid },
         { id: 'techSupport', label: t('techSupport'), icon: LifeBuoy },
     ];
 

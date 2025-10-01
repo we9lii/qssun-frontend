@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { StageHistoryItem } from '../../types';
-import { MessageSquare, FileText, Edit } from 'lucide-react';
+import { MessageSquare, FileText, Edit, Download } from 'lucide-react';
 
 interface TimelineProps {
   items: StageHistoryItem[];
@@ -32,11 +31,20 @@ const TimelineItem: React.FC<{ item: StageHistoryItem; isLast: boolean, onClick?
 
       {item.documents && item.documents.length > 0 && (
           <div className="mt-2 space-y-1">
-              {item.documents.map(doc => (
-                  <div key={doc.id} className="text-xs p-1.5 bg-slate-200 dark:bg-slate-700 rounded flex items-center gap-2">
-                      <FileText size={12} className="text-primary"/>
-                      <span>{doc.file.name} ({doc.type})</span>
-                  </div>
+              {item.documents.filter(doc => doc && typeof doc === 'object').map(doc => ( // Defensive check
+                  <a 
+                    key={doc.id} 
+                    href={doc.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-xs p-1.5 bg-slate-200 dark:bg-slate-700 rounded flex items-center justify-between gap-2 hover:bg-primary/20 transition-colors"
+                  >
+                      <div className="flex items-center gap-2 truncate">
+                        <FileText size={12} className="text-primary flex-shrink-0"/>
+                        <span className="truncate">{doc.fileName || 'ملف'} ({doc.type})</span>
+                      </div>
+                      <Download size={14} className="text-slate-500 flex-shrink-0"/>
+                  </a>
               ))}
           </div>
       )}
