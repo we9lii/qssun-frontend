@@ -1,9 +1,9 @@
 import React from 'react';
-import { Report, ReportType, SalesDetails, MaintenanceDetails, ProjectDetails } from '../../types';
+import { Report, ReportType, SalesDetails, MaintenanceDetails, ProjectDetails, SalesCustomerFile, ProjectUpdateFile } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
-import { BarChart2, Printer, Star, Download } from 'lucide-react';
+import { BarChart2, Printer, Download, FileText } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import useAppStore from '../../store/useAppStore';
 
@@ -18,6 +18,20 @@ const typeColors: { [key in ReportType]: string } = {
     [ReportType.Inquiry]: 'bg-nav-log',
 };
 
+// Helper component to render any file type as a clickable link
+const FileAttachment: React.FC<{ file: SalesCustomerFile | ProjectUpdateFile }> = ({ file }) => (
+    <a 
+        href={file.url} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 p-2 bg-slate-200 dark:bg-slate-700 rounded-md hover:bg-primary/20 transition-colors"
+    >
+        <FileText size={16} className="text-primary flex-shrink-0" />
+        <span className="text-sm truncate">{file.fileName}</span>
+        <Download size={16} className="text-slate-500 ml-auto flex-shrink-0" />
+    </a>
+);
+
 const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
     switch (report.type) {
         case ReportType.Sales:
@@ -28,29 +42,25 @@ const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
                         <InfoItem label="إجمالي العملاء" value={salesDetails.totalCustomers} />
                         <InfoItem label="نوع الخدمة" value={salesDetails.serviceType} />
                     </div>
-                    <h4 className="font-semibold pt-2 border-t mt-2">تفاصيل العملاء:</h4>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-slate-100 dark:bg-slate-700">
-                                <tr>
-                                    <th className="p-2 text-right">الاسم</th>
-                                    <th className="p-2 text-right">الهاتف</th>
-                                    <th className="p-2 text-right">المنطقة</th>
-                                    <th className="p-2 text-right">الطلب</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {salesDetails.customers.map((c) => (
-                                    <tr key={c.id} className="border-b dark:border-slate-700">
-                                        <td className="p-2">{c.name}</td>
-                                        <td className="p-2" dir="ltr">{c.phone}</td>
-                                        <td className="p-2">{c.region}</td>
-                                        <td className="p-2">{c.requestType}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    {salesDetails.customers.map((c, index) => (
+                        <div key={c.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                            <h4 className="font-semibold pt-2 border-t mt-2">العميل #{index + 1}: {c.name}</h4>
+                            <div className="grid grid-cols-2 gap-4 mt-2">
+                                <InfoItem label="الهاتف" value={c.phone} />
+                                <InfoItem label="المنطقة" value={c.region} />
+                                <InfoItem label="الطلب" value={c.requestType} />
+                                <InfoItem label="الملاحظات" value={c.notes} isFullWidth/>
+                            </div>
+                             {c.files && c.files.length > 0 && (
+                                <div className="mt-2">
+                                    <h5 className="text-sm font-semibold mb-1">المرفقات:</h5>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        {c.files.map(file => <FileAttachment key={file.id} file={file} />)}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             );
         case ReportType.Maintenance:
@@ -67,31 +77,33 @@ const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
                         <InfoItem label="الملاحظات" value={maintDetails.notes} isFullWidth />
                     </div>
                     
-                    {maintDetails.beforeImages && maintDetails.beforeImages.length > 0 && (
-                        <div>
-                            <h4 className="font-semibold pt-4 border-t mt-4">صور قبل العمل</h4>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
-                                {/* FIX: Access the `url` property from the image object. */}
-                                {maintDetails.beforeImages.map((imgSrc, index) => (
-                                    <a key={index} href={imgSrc.url} target="_blank" rel="noopener noreferrer" className="block">
-                                        <img src={imgSrc.url} alt={`Before ${index + 1}`} className="w-full h-24 object-cover rounded-md" />
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    
-                    {maintDetails.afterImages && maintDetails.afterImages.length > 0 && (
-                        <div>
-                            <h4 className="font-semibold pt-4 border-t mt-4">صور بعد العمل</h4>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
-                                {/* FIX: Access the `url` property from the image object. */}
-                                {maintDetails.afterImages.map((imgSrc, index) => (
-                                     <a key={index} href={imgSrc.url} target="_blank" rel="noopener noreferrer" className="block">
-                                        <img src={imgSrc.url} alt={`After ${index + 1}`} className="w-full h-24 object-cover rounded-md" />
-                                    </a>
-                                ))}
-                            </div>
+                    {(maintDetails.beforeImages?.length > 0 || maintDetails.afterImages?.length > 0) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t mt-4">
+                             {maintDetails.beforeImages && maintDetails.beforeImages.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold">صور قبل العمل</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                                        {maintDetails.beforeImages.map((img, index) => (
+                                            <a key={index} href={img.url} target="_blank" rel="noopener noreferrer" className="block">
+                                                <img src={img.url} alt={`Before ${index + 1}`} className="w-full h-24 object-cover rounded-md" />
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {maintDetails.afterImages && maintDetails.afterImages.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold">صور بعد العمل</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                                        {maintDetails.afterImages.map((img, index) => (
+                                             <a key={index} href={img.url} target="_blank" rel="noopener noreferrer" className="block">
+                                                <img src={img.url} alt={`After ${index + 1}`} className="w-full h-24 object-cover rounded-md" />
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -99,12 +111,32 @@ const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
         case ReportType.Project:
              const projDetails = report.details as ProjectDetails;
              return (
-                <div className="grid grid-cols-2 gap-4">
-                     <InfoItem label="مالك المشروع" value={projDetails.projectOwner} />
-                     <InfoItem label="حجم المشروع" value={projDetails.size} />
-                     <InfoItem label="الموقع" value={projDetails.location} />
-                     <InfoItem label="تاريخ البدء" value={projDetails.startDate} />
-                </div>
+                 <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                         <InfoItem label="مالك المشروع" value={projDetails.projectOwner} />
+                         <InfoItem label="حجم المشروع" value={projDetails.size} />
+                         <InfoItem label="الموقع" value={projDetails.location} />
+                         <InfoItem label="تاريخ البدء" value={projDetails.startDate} />
+                    </div>
+                    <h4 className="font-semibold pt-4 border-t mt-4">تحديثات المشروع:</h4>
+                    <div className="space-y-3">
+                        {projDetails.updates.map(update => (
+                            <div key={update.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                                <p className={`font-semibold ${update.completed ? 'text-green-500' : ''}`}>
+                                    {update.label} - {update.completed ? 'مكتمل' : 'قيد الانتظار'}
+                                </p>
+                                {update.files && update.files.length > 0 && (
+                                    <div className="mt-2">
+                                        <h5 className="text-xs font-semibold mb-1">المرفقات:</h5>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                          {update.files.map((file, index) => <FileAttachment key={index} file={file} />)}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                 </div>
              );
         default:
             return <p>لا توجد تفاصيل لعرضها لهذا النوع من التقارير.</p>
@@ -114,7 +146,7 @@ const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
 const InfoItem: React.FC<{ label: string, value?: string | number, isFullWidth?: boolean }> = ({ label, value, isFullWidth }) => (
     <div className={isFullWidth ? 'col-span-2' : ''}>
         <p className="text-sm text-slate-500">{label}</p>
-        <p className="font-semibold">{value}</p>
+        <p className="font-semibold break-words">{value}</p>
     </div>
 );
 

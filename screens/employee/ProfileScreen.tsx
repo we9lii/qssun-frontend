@@ -12,24 +12,24 @@ import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import useAppStore from '../../store/useAppStore';
 import toast from 'react-hot-toast';
 
-// Helper functions to safely render potentially complex data
-const getPositionTitle = (position: any): string => {
-  if (!position) return '—';
-  if (typeof position === 'string') return position;
-  return String(position);
-};
-
 const ProfileScreen: React.FC = () => {
-    const { t, user, updateUser: updateContextUser } = useAppContext();
+    const { t, user, updateUser: updateContextUser, changePassword } = useAppContext();
     const { setActiveView, updateUser: updateStoreUser } = useAppStore();
     const [isEditing, setIsEditing] = useState(false);
     
-    if (!user) return null;
+    // State for password change form
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmNewPassword, setConfirmNewPassword] = useState('');
+    const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+    
+    if (!user) return null; // Should not happen if routed correctly
 
     const [formData, setFormData] = useState({
         name: user.name,
-        phone: user.phone || '',
-        position: getPositionTitle(user.position),
+        phone: user.phone,
+        position: user.position,
+        bio: 'مسؤول مبيعات متخصص في حلول الطاقة الشمسية للمشاريع الكبرى.',
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -38,13 +38,17 @@ const ProfileScreen: React.FC = () => {
     
     const handleSave = () => {
         const updatedUserData = {
-            id: user.id,
+            id: user.id, // Must include ID for the store action
             name: formData.name,
             phone: formData.phone,
             position: formData.position,
         };
+
+        // Update the master list of users in the Zustand store
         updateStoreUser(updatedUserData);
+        // Update the currently logged-in user's context for immediate UI feedback
         updateContextUser(updatedUserData);
+        
         toast.success('تم حفظ التعديلات بنجاح');
         setIsEditing(false);
     };
@@ -52,11 +56,38 @@ const ProfileScreen: React.FC = () => {
     const handleCancel = () => {
         setFormData({
             name: user.name,
-            phone: user.phone || '',
-            position: getPositionTitle(user.position),
+            phone: user.phone,
+            position: user.position,
+            bio: 'مسؤول مبيعات متخصص في حلول الطاقة الشمسية للمشاريع الكبرى.',
         });
         setIsEditing(false);
     }
+
+    const handlePasswordChange = async () => {
+        if (!currentPassword || !newPassword || !confirmNewPassword) {
+            toast.error('الرجاء ملء جميع حقول كلمة المرور.');
+            return;
+        }
+        if (newPassword !== confirmNewPassword) {
+            toast.error('كلمتا المرور الجديدتان غير متطابقتين.');
+            return;
+        }
+        if (newPassword.length < 6) {
+            toast.error('يجب أن تكون كلمة المرور الجديدة 6 أحرف على الأقل.');
+            return;
+        }
+        
+        setIsPasswordSaving(true);
+        const success = await changePassword(user.id, currentPassword, newPassword);
+        setIsPasswordSaving(false);
+
+        if (success) {
+            // Clear fields on success
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmNewPassword('');
+        }
+    };
     
     const formattedJoinDate = format(new Date(user.joinDate), 'PPP', { locale: arSA });
 
@@ -93,7 +124,7 @@ const ProfileScreen: React.FC = () => {
                             <div className="mt-6 space-y-3 text-sm">
                                 <div className="flex items-center gap-3"><Mail size={16} className="text-slate-400"/><span dir="ltr">{user.email}</span></div>
                                 <div className="flex items-center gap-3"><Phone size={16} className="text-slate-400"/>
-                                    {isEditing ? <Input name="phone" dir="ltr" value={formData.phone} onChange={handleInputChange} /> : <span dir="ltr">{formData.phone || '—'}</span>}
+                                    {isEditing ? <Input name="phone" dir="ltr" value={formData.phone} onChange={handleInputChange} /> : <span dir="ltr">{formData.phone}</span>}
                                 </div>
                                 <div className="flex items-center gap-3"><MapPin size={16} className="text-slate-400"/><span>{user.branch}</span></div>
                                 <div className="flex items-center gap-3"><Calendar size={16} className="text-slate-400"/><span>انضم في: {formattedJoinDate}</span></div>
@@ -112,6 +143,12 @@ const ProfileScreen: React.FC = () => {
                     </Card>
                 </div>
                 <div className="lg:col-span-2 space-y-6">
+                    {isEditing && (
+                        <Card>
+                            <CardHeader><CardTitle>نبذة شخصية</CardTitle></CardHeader>
+                            <CardContent><Textarea name="bio" value={formData.bio} onChange={handleInputChange} /></CardContent>
+                        </Card>
+                    )}
                     <Card>
                         <CardHeader><CardTitle>معلومات العمل</CardTitle></CardHeader>
                         <CardContent className="grid grid-cols-2 gap-4">
@@ -124,12 +161,12 @@ const ProfileScreen: React.FC = () => {
                     <Card>
                         <CardHeader><CardTitle>إعدادات الأمان</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
-                            <div><label className="text-sm">كلمة المرور الحالية</label><Input type="password" icon={<Lock size={16} />} required /></div>
-                            <div><label className="text-sm">كلمة المرور الجديدة</label><Input type="password" icon={<Lock size={16} />} required /></div>
-                            <div><label className="text-sm">تأكيد كلمة المرور الجديدة</label><Input type="password" icon={<Lock size={16} />} required /></div>
+                            <div><label className="text-sm">كلمة المرور الحالية</label><Input type="password" icon={<Lock size={16} />} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required /></div>
+                            <div><label className="text-sm">كلمة المرور الجديدة</label><Input type="password" icon={<Lock size={16} />} value={newPassword} onChange={e => setNewPassword(e.target.value)} required /></div>
+                            <div><label className="text-sm">تأكيد كلمة المرور الجديدة</label><Input type="password" icon={<Lock size={16} />} value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} required /></div>
                         </CardContent>
                         <CardFooter>
-                            <Button>تغيير كلمة المرور</Button>
+                            <Button onClick={handlePasswordChange} isLoading={isPasswordSaving}>تغيير كلمة المرور</Button>
                         </CardFooter>
                     </Card>
                 </div>

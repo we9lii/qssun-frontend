@@ -23,6 +23,7 @@ export interface User {
     joinDate: string;
     employeeType?: EmployeeType;
     hasImportExportPermission?: boolean;
+    // FIX: Add isFirstLogin property to support the onboarding screen flow.
     isFirstLogin?: boolean;
 }
 

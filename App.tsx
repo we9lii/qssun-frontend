@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppContext } from './hooks/useAppContext';
 import LoginScreen from './screens/LoginScreen';
@@ -29,8 +29,48 @@ import { ConfirmationModal } from './components/common/ConfirmationModal';
 import AdminEmployeeDetailScreen from './screens/admin/AdminEmployeeDetailScreen';
 import TechnicalSupportScreen from './screens/common/TechnicalSupportScreen';
 import { X } from 'lucide-react';
-import OnboardingScreen from './screens/common/OnboardingScreen';
+// import OnboardingScreen from './screens/common/OnboardingScreen'; // No longer needed
 import { Skeleton } from './components/common/Skeleton';
+
+const WelcomeMarquee: React.FC = () => {
+    const [show, setShow] = useState(false);
+
+    useEffect(() => {
+        const hasBeenShown = sessionStorage.getItem('qssunWelcomeShown');
+        if (!hasBeenShown) {
+            // Delay showing it slightly to make it feel like it comes after the page loads
+            const showTimer = setTimeout(() => setShow(true), 1500);
+            
+            // Set it to be removed from the DOM after animation completes
+            const hideTimer = setTimeout(() => {
+                setShow(false);
+            }, 31500); // Animation is 30s, give it a bit more time to finish.
+
+            sessionStorage.setItem('qssunWelcomeShown', 'true');
+
+            return () => {
+                clearTimeout(showTimer);
+                clearTimeout(hideTimer);
+            };
+        }
+    }, []);
+
+    if (!show) {
+        return null;
+    }
+
+    const textContent = "مرحبًا بك في نظام QssunReports – طوّرته بكل فخر واعتزاز ليكون عونًا لك في إنجاز أعمالك بكفاءة. أنا فيصل، وأتمنى أن يمنحك تجربة سلسة ومميزة. وإذا احتجت أي مساعدة، لا تتردد بالضغط على (الدعم الفني).";
+
+    return (
+        <div className="fixed top-0 left-0 right-0 h-12 flex items-center z-[100] overflow-hidden pointer-events-none" aria-hidden="true">
+            <div className="animate-welcome-marquee whitespace-nowrap">
+                <span className="text-xl font-bold text-white mx-12" style={{ textShadow: '0 2px 5px rgba(0,0,0,0.8)' }}>
+                    {textContent}
+                </span>
+            </div>
+        </div>
+    );
+};
 
 
 const App: React.FC = () => {
@@ -81,7 +121,7 @@ const App: React.FC = () => {
   }, [theme, lang, activeView, editingReportId, viewingEmployeeId, user, setActiveWorkflowId, setActiveReportId, setEditingReportId, clearViewingEmployeeId, activeReportId]);
 
   useEffect(() => {
-    if (user && !user.isFirstLogin) {
+    if (user) {
         fetchInitialData();
     }
   }, [user, fetchInitialData]);
@@ -122,9 +162,7 @@ const App: React.FC = () => {
     return <LoginScreen />;
   }
 
-  if (user.isFirstLogin) {
-    return <OnboardingScreen />
-  }
+  // Onboarding screen logic removed as per user request.
   
   const editingReport = editingReportId ? reports.find(r => r.id === editingReportId) : null;
   
@@ -189,6 +227,7 @@ const App: React.FC = () => {
             }}
             onCancel={closeConfirmation}
         />
+        {user && <WelcomeMarquee />}
         <div className="bg-slate-100 dark:bg-slate-800 min-h-screen text-slate-800 dark:text-slate-200 font-sans">
         <Sidebar />
         <div className={`relative lg:mr-64 ${isSidebarCollapsed ? 'lg:mr-20' : 'lg:mr-64'} flex flex-col min-h-screen transition-all duration-300`}>

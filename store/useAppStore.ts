@@ -37,6 +37,7 @@ interface AppState {
     setActiveWorkflowId: (id: string | null) => void;
     createRequest: (request: Omit<WorkflowRequest, 'id'>) => Promise<void>;
     updateRequest: (request: WorkflowRequest, files?: { file: File, type: string, id: string }[]) => Promise<void>;
+    deleteRequest: (requestId: string) => Promise<void>;
 
     // Reports State
     reports: Report[];
@@ -202,6 +203,35 @@ const useAppStore = create<AppState>((set, get) => ({
             console.error("Failed to update workflow request:", error);
             toast.error(`فشل تحديث طلب سير العمل: ${error.message}`);
             throw error; // Re-throw to be caught in component
+        }
+    },
+    deleteRequest: async (requestId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/workflow-requests/${requestId}`, {
+                method: 'DELETE',
+            });
+    
+            if (!response.ok) {
+                const errorText = await response.text();
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    throw new Error(errorJson.message || 'Failed to delete workflow request.');
+                } catch (e) {
+                    console.error("Non-JSON error response:", errorText);
+                    throw new Error('Server returned a non-JSON error response.');
+                }
+            }
+            
+            set(state => ({
+                requests: state.requests.filter(r => r.id !== requestId),
+                activeWorkflowId: state.activeWorkflowId === requestId ? null : state.activeWorkflowId,
+            }));
+            toast.success('تم حذف الطلب بنجاح!');
+    
+        } catch (error: any) {
+            console.error("Failed to delete workflow request:", error);
+            toast.error(`فشل حذف الطلب: ${error.message}`);
+            throw error;
         }
     },
 

@@ -64,6 +64,9 @@ const TimelineItem: React.FC<{ item: StageHistoryItem; isLast: boolean, onClick?
 };
 
 export const Timeline: React.FC<TimelineProps> = ({ items, onItemClick }) => {
+  if (!items || items.length === 0) {
+      return <p className="text-sm text-center text-slate-500 py-4">لا توجد إجراءات مسجلة بعد.</p>
+  }
   return (
     <ol className="relative border-s border-slate-300 dark:border-slate-600">
       {items.map((item, index) => (

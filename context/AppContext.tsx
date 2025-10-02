@@ -16,6 +16,7 @@ interface AppContextType {
   login: (employeeId: string, password: string) => Promise<void>;
   logout: () => void;
   updateUser: (updatedUserData: Partial<User>) => void;
+  changePassword: (userId: string, currentPassword: string, newPassword: string) => Promise<boolean>;
   isLoading: boolean;
 }
 
@@ -195,8 +196,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setUser(prevUser => (prevUser ? { ...prevUser, ...updatedUserData } : null));
   };
 
+  const changePassword = async (userId: string, currentPassword: string, newPassword: string): Promise<boolean> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/users/change-password`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, currentPassword, newPassword }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            toast.error(data.message || 'فشل تغيير كلمة المرور.');
+            return false;
+        }
+
+        toast.success(data.message);
+        return true;
+
+    } catch (error) {
+        console.error('Change password error:', error);
+        toast.error('حدث خطأ أثناء الاتصال بالخادم.');
+        return false;
+    }
+  };
+
   return (
-    <AppContext.Provider value={{ theme, toggleTheme, lang, toggleLang, t, user, login, logout, updateUser, isLoading }}>
+    <AppContext.Provider value={{ theme, toggleTheme, lang, toggleLang, t, user, login, logout, updateUser, isLoading, changePassword }}>
       {children}
     </AppContext.Provider>
   );

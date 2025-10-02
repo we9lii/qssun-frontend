@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import { Download, PlusCircle, Search } from 'lucide-react';
+import { Download, PlusCircle, Search, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
 import { useAppContext } from '../../hooks/useAppContext';
 import { Badge } from '../../components/ui/Badge';
@@ -11,6 +11,7 @@ import { WorkflowRequest } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { Input } from '../../components/ui/Input';
 import useAppStore from '../../store/useAppStore';
+import toast from 'react-hot-toast';
 
 interface WorkflowScreenProps {
     // Props removed
@@ -22,7 +23,7 @@ const priorityVariant: { [key: string]: 'destructive' | 'warning' | 'default' } 
     'منخفضة': 'default',
 }
 
-const WorkflowCard: React.FC<{ request: WorkflowRequest; onViewDetails: () => void; }> = ({ request, onViewDetails }) => {
+const WorkflowCard: React.FC<{ request: WorkflowRequest; onViewDetails: () => void; onDelete: () => void; }> = ({ request, onViewDetails, onDelete }) => {
     const currentStage = WORKFLOW_STAGES.find(s => s.id === request.currentStageId);
     return (
         <Card className="hover:shadow-workflow transition-all duration-300 flex flex-col transform hover:-translate-y-1.5">
@@ -32,7 +33,12 @@ const WorkflowCard: React.FC<{ request: WorkflowRequest; onViewDetails: () => vo
                         <CardTitle className="mb-1">{request.title}</CardTitle>
                         <p className="text-xs text-slate-500 font-mono">{request.id}</p>
                     </div>
-                    <Badge variant={priorityVariant[request.priority]}>{request.priority}</Badge>
+                     <div className="flex items-center gap-2">
+                        <Badge variant={priorityVariant[request.priority]}>{request.priority}</Badge>
+                        <Button variant="ghost" size="sm" className="p-1 h-auto text-destructive hover:bg-destructive/10" onClick={onDelete} aria-label="Delete request">
+                            <Trash2 size={16} />
+                        </Button>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent className="flex-1">
@@ -57,7 +63,23 @@ const WorkflowCard: React.FC<{ request: WorkflowRequest; onViewDetails: () => vo
 
 const WorkflowScreen: React.FC<WorkflowScreenProps> = () => {
     const { t } = useAppContext();
-    const { requests, setActiveWorkflowId, setWorkflowModalOpen, setActiveView } = useAppStore();
+    const { requests, setActiveWorkflowId, setWorkflowModalOpen, setActiveView, openConfirmation, deleteRequest } = useAppStore();
+    
+    const handleDelete = (requestId: string) => {
+        openConfirmation(
+            'هل أنت متأكد من حذف هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.',
+            async () => {
+                try {
+                    await deleteRequest(requestId);
+                    toast.success('تم حذف الطلب بنجاح!');
+                } catch (error) {
+                    // Error is already toasted in the store
+                    console.error("Deletion failed:", error);
+                }
+            }
+        );
+    };
+
 
     return (
         <div className="space-y-6">
@@ -117,7 +139,7 @@ const WorkflowScreen: React.FC<WorkflowScreenProps> = () => {
 
             {requests && requests.length > 0 ? (
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {requests.map(req => <WorkflowCard key={req.id} request={req} onViewDetails={() => setActiveWorkflowId(req.id)} />)}
+                    {requests.map(req => <WorkflowCard key={req.id} request={req} onViewDetails={() => setActiveWorkflowId(req.id)} onDelete={() => handleDelete(req.id)} />)}
                 </div>
             ) : (
                 <Card>
