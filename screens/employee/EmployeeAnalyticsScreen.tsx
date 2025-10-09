@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+// FIX: Import useNavigate for routing.
+import { useNavigate } from 'react-router-dom';
 import { BarChart2, Check, Star, Repeat, TrendingUp, Search, Eye, Download, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
@@ -51,7 +53,9 @@ const statusVariant: { [key in ReportStatus]: 'success' | 'warning' | 'destructi
 
 const EmployeeAnalyticsScreen: React.FC = () => {
     const { t, user } = useAppContext();
-    const { reports, setActiveView, viewReport } = useAppStore();
+    // FIX: Remove non-existent properties from destructuring.
+    const { reports } = useAppStore();
+    const navigate = useNavigate();
     const [tableSearchTerm, setTableSearchTerm] = useState('');
     const [filteredReports, setFilteredReports] = useState<Report[]>([]);
 
@@ -94,6 +98,7 @@ const EmployeeAnalyticsScreen: React.FC = () => {
     const COLORS: { [key: string]: string } = {
         [ReportType.Sales]: '#3b82f6',
         [ReportType.Maintenance]: '#10b981',
+        // FIX: Added color for Project report type.
         [ReportType.Project]: '#f97316',
         [ReportType.Inquiry]: '#64748b'
     };
@@ -146,7 +151,8 @@ const EmployeeAnalyticsScreen: React.FC = () => {
                 icon={BarChart2}
                 title={t('analytics')}
                 colorClass="bg-indigo-500"
-                onBack={() => setActiveView('dashboard')}
+// FIX: The `onBack` prop for ScreenHeader expects a string path for navigation, but was incorrectly passed a function. This has been corrected to navigate to the dashboard root.
+                onBack="/"
             />
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -224,7 +230,8 @@ const EmployeeAnalyticsScreen: React.FC = () => {
                                         <td className="p-2">{report.type}</td>
                                         <td className="p-2">{new Date(report.date).toLocaleDateString('ar-SA')}</td>
                                         <td className="p-2"><Badge variant={statusVariant[report.status]}>{report.status}</Badge></td>
-                                        <td className="p-2"><Button variant="ghost" size="sm" icon={<Eye size={14}/>} onClick={() => viewReport(report.id)}>عرض</Button></td>
+                                        {/* FIX: Use navigate to view the report detail page. */}
+                                        <td className="p-2"><Button variant="ghost" size="sm" icon={<Eye size={14}/>} onClick={() => navigate(`/reports/${report.id}`)}>عرض</Button></td>
                                     </tr>
                                 ))}
                             </tbody>

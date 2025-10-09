@@ -1,6 +1,6 @@
-
-
 import React, { useState } from 'react';
+// FIX: Import useNavigate for routing.
+import { useNavigate } from 'react-router-dom';
 import { Users, User, Building, Send, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -14,7 +14,8 @@ import useAppStore from '../../store/useAppStore';
 
 const ManageNotificationsScreen: React.FC = () => {
   const { t } = useAppContext();
-  const { setActiveView } = useAppStore();
+  // FIX: Remove setActiveView from destructuring as it does not exist.
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
   const [notificationType, setNotificationType] = useState<NotificationType>('all');
   const [title, setTitle] = useState('');
@@ -35,7 +36,8 @@ const ManageNotificationsScreen: React.FC = () => {
     <div className="space-y-6">
         <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold">{t('manageNotifications')}</h1>
-            <Button onClick={() => setActiveView('dashboard')} variant="secondary">
+            {/* FIX: Use navigate to go back to the dashboard. */}
+            <Button onClick={() => navigate('/')} variant="secondary">
                 <ArrowRight size={16} className="me-2" />
                 رجوع
             </Button>

@@ -5,6 +5,7 @@ import { ThemeToggle } from '../ui/ThemeToggle';
 import { LanguageToggle } from '../ui/LanguageToggle';
 import { Breadcrumbs } from '../common/Breadcrumbs';
 import toast from 'react-hot-toast';
+import { NotificationBell } from './../common/NotificationBell';
 
 interface HeaderProps {
     toggleMobileMenu: () => void;
@@ -30,6 +31,8 @@ export const Header: React.FC<HeaderProps> = ({ toggleMobileMenu }) => {
                 {/* Left Side: User Info & Toggles */}
                 <div className="flex items-center gap-3 flex-shrink-0">
                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-lg">
+                        <NotificationBell />
+                        <div className="h-5 w-px bg-slate-200 dark:bg-slate-600"></div>
                         <LanguageToggle />
                         <div className="h-5 w-px bg-slate-200 dark:bg-slate-600"></div>
                         <ThemeToggle />
@@ -63,11 +66,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleMobileMenu }) => {
                     {/* Left Side: Developer Logo */}
                     <div>
                         <div className="bg-white/70 dark:bg-slate-700/70 backdrop-blur-lg shadow-md p-1.5 rounded-full">
-                            <img 
-                                src="https://www2.0zz0.com/2025/09/11/09/271562700.gif" 
-                                alt="Developer Logo"
-                                className="h-8 w-8"
-                            />
+                           <NotificationBell />
                         </div>
                     </div>
 

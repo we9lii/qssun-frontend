@@ -8,8 +8,8 @@ import { Button } from '../../components/ui/Button';
 
 const TechnicalSupportScreen: React.FC = () => {
     const { t } = useAppContext();
-    const { setActiveView } = useAppStore();
-
+    // FIX: Removed unused `setActiveView` which does not exist on the store.
+    
     const supportDetails = {
         name: "فيصل بن محمد النتيفي",
         title: "مطور ومدير النظام",

@@ -1,57 +1,76 @@
 import React from 'react';
 import { ChevronLeft } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAppContext } from '../../hooks/useAppContext';
-import useAppStore from '../../store/useAppStore';
-import { Role } from '../../types';
 
-const viewHierarchy: { [key: string]: { parent?: string; labelKey: string } } = {
+// Map paths to their labels and parent paths
+const pathHierarchy: { [key: string]: { parent?: string; labelKey: string, dynamic?: boolean } } = {
+    '/': { labelKey: 'dashboard' },
     // Employee
-    dashboard: { labelKey: 'dashboard' },
-    sales: { parent: 'dashboard', labelKey: 'salesReports' },
-    maintenance: { parent: 'dashboard', labelKey: 'maintenanceReports' },
-    projects: { parent: 'dashboard', labelKey: 'projectReports' },
-    createProjectReport: { parent: 'projects', labelKey: 'createProjectReport' },
-    createQuotation: { parent: 'projects', labelKey: 'createQuotation' },
-    log: { parent: 'dashboard', labelKey: 'reportsLog' },
-    workflow: { parent: 'dashboard', labelKey: 'importExport' },
-    profile: { parent: 'dashboard', labelKey: 'profile' },
-    reportDetail: { parent: 'log', labelKey: 'reportsLog' },
-    techSupport: { parent: 'dashboard', labelKey: 'techSupport' },
+    '/sales': { parent: '/', labelKey: 'salesReports' },
+    '/maintenance': { parent: '/', labelKey: 'maintenanceReports' },
+    '/projects': { parent: '/', labelKey: 'projectReports' },
+    '/projects/new': { parent: '/projects', labelKey: 'projectReports' },
+    '/quotations/new': { parent: '/projects', labelKey: 'projectReports' },
+    '/team-projects': { parent: '/', labelKey: 'projectReports' },
+    '/log': { parent: '/', labelKey: 'reportsLog' },
+    '/workflow': { parent: '/', labelKey: 'importExport' },
+    '/workflow/:workflowId': { parent: '/workflow', labelKey: 'importExport', dynamic: true },
+    '/profile': { parent: '/', labelKey: 'profile' },
+    '/support': { parent: '/', labelKey: 'techSupport' },
+    '/reports/:reportId': { parent: '/log', labelKey: 'reportsLog', dynamic: true }, // Default parent for employee
+    '/sales/edit/:reportId': { parent: '/log', labelKey: 'reportsLog', dynamic: true },
+    '/maintenance/edit/:reportId': { parent: '/log', labelKey: 'reportsLog', dynamic: true },
+    '/projects/edit/:reportId': { parent: '/log', labelKey: 'reportsLog', dynamic: true },
 
     // Admin
-    allReports: { parent: 'dashboard', labelKey: 'allReports' },
-    analytics: { parent: 'dashboard', labelKey: 'analytics' },
-    manageEmployees: { parent: 'dashboard', labelKey: 'manageEmployees' },
-    serviceEvaluation: { parent: 'dashboard', labelKey: 'serviceEvaluation' },
-    manageBranches: { parent: 'dashboard', labelKey: 'manageBranches' },
-    manageNotifications: { parent: 'dashboard', labelKey: 'manageNotifications' },
-    managePermissions: { parent: 'dashboard', labelKey: 'managePermissions' },
+    '/reports': { parent: '/', labelKey: 'allReports' },
+    '/employees': { parent: '/', labelKey: 'manageEmployees' },
+    '/employees/:employeeId': { parent: '/employees', labelKey: 'manageEmployees', dynamic: true },
+    '/branches': { parent: '/', labelKey: 'manageBranches' },
+    '/teams': { parent: '/showcase', labelKey: 'adminCenter' },
+    '/showcase': { parent: '/', labelKey: 'adminCenter' },
 };
 
 export const Breadcrumbs: React.FC = () => {
     const { t, user } = useAppContext();
-    const { activeView, setActiveView } = useAppStore();
+    const location = useLocation();
 
     const buildBreadcrumbs = () => {
-        const trail = [];
-        let currentView = activeView;
+        const pathnames = location.pathname.split('/').filter(x => x);
+        const trail: { path: string, labelKey: string }[] = [{ path: '/', labelKey: 'dashboard' }];
+
+        pathnames.reduce((prevPath, current, index) => {
+            const currentPath = `${prevPath}/${current}`;
+            const isLast = index === pathnames.length - 1;
+            
+            // Find a matching static or dynamic route
+            const routeKey = Object.keys(pathHierarchy).find(key => {
+                const keyParts = key.split('/').filter(p => p);
+                const pathParts = currentPath.split('/').filter(p => p);
+                if (keyParts.length !== pathParts.length) return false;
+                return keyParts.every((part, i) => part.startsWith(':') || part === pathParts[i]);
+            });
+
+            if (routeKey && routeKey !== '/') {
+                 // Avoid duplicating the root
+                if(trail.findIndex(t => t.path === currentPath) === -1) {
+                    trail.push({ path: currentPath, labelKey: pathHierarchy[routeKey].labelKey });
+                }
+            }
+            return currentPath;
+        }, '');
         
-        // Special handling for report details for admin vs employee
-        if (currentView === 'reportDetail' && user?.role === Role.Admin) {
-            viewHierarchy.reportDetail.parent = 'allReports';
-        } else if (currentView === 'reportDetail' && user?.role === Role.Employee) {
-            viewHierarchy.reportDetail.parent = 'log';
+        // Remove the last item if it's the same as the second to last (e.g., /projects/new and /projects)
+        if (trail.length > 2 && trail[trail.length - 1].labelKey === trail[trail.length - 2].labelKey) {
+            trail.pop();
         }
 
-        while (currentView && viewHierarchy[currentView]) {
-            trail.unshift({ view: currentView, ...viewHierarchy[currentView] });
-            currentView = viewHierarchy[currentView].parent!;
-        }
         return trail;
     };
 
     const breadcrumbs = buildBreadcrumbs();
-
+    
     if (breadcrumbs.length <= 1) {
         return <div className="h-5"></div>; // Keep layout consistent
     }
@@ -60,19 +79,19 @@ export const Breadcrumbs: React.FC = () => {
         <nav aria-label="Breadcrumb">
             <ol className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
                 {breadcrumbs.map((crumb, index) => (
-                    <li key={crumb.view} className="flex items-center gap-1 truncate">
+                    <li key={crumb.path} className="flex items-center gap-1 truncate">
                         {index > 0 && <ChevronLeft size={14} className="flex-shrink-0"/>}
                         {index === breadcrumbs.length - 1 ? (
                             <span className="font-semibold text-slate-800 dark:text-slate-200 truncate" aria-current="page">
                                 {t(crumb.labelKey)}
                             </span>
                         ) : (
-                            <button
-                                onClick={() => setActiveView(crumb.view)}
+                            <Link
+                                to={crumb.path}
                                 className="hover:underline hover:text-primary truncate"
                             >
                                 {t(crumb.labelKey)}
-                            </button>
+                            </Link>
                         )}
                     </li>
                 ))}

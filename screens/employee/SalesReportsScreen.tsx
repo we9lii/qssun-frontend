@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Trash2, User, FileText, Upload } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -12,8 +13,6 @@ import toast from 'react-hot-toast';
 import { useForm, useFieldArray } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 
-// FIX: Changed `customers` to be an array `SalesCustomer[]` to correctly type the form for useFieldArray.
-// This resolves all subsequent type errors in this file.
 type SalesReportFormInputs = {
     totalCustomers: number;
     serviceType: string;
@@ -22,7 +21,8 @@ type SalesReportFormInputs = {
 
 const SalesReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ reportToEdit }) => {
     const { user } = useAppContext();
-    const { addReport, updateReport, setActiveView } = useAppStore();
+    const { addReport, updateReport } = useAppStore();
+    const navigate = useNavigate();
     const [isSaving, setIsSaving] = useState(false);
 
     const { register, control, handleSubmit, reset, setValue, watch } = useForm<SalesReportFormInputs>({
@@ -105,7 +105,7 @@ const SalesReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ reportT
                 await addReport(newReport);
                 toast.success('تم حفظ تقرير المبيعات بنجاح!');
             }
-            setActiveView('log');
+            navigate('/log');
         } finally {
             setIsSaving(false);
         }
@@ -117,7 +117,7 @@ const SalesReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ reportT
                 icon={FileText} 
                 title={isEditMode ? "تعديل تقرير مبيعات" : "تقرير موظف مبيعات"}
                 colorClass="bg-nav-sales"
-                onBack={() => setActiveView(isEditMode ? 'log' : 'dashboard')}
+                onBack={isEditMode ? '/log' : '/'}
             />
             <Card>
                 <CardContent className="pt-6">

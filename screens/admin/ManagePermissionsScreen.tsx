@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+// FIX: Import useNavigate for routing.
+import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Trash2, ArrowRight, User as UserIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -75,7 +77,8 @@ const PermissionFormModal: React.FC<{
 
 const ManagePermissionsScreen: React.FC = () => {
     const { t } = useAppContext();
-    const { setActiveView } = useAppStore();
+    // FIX: Remove setActiveView from destructuring as it does not exist.
+    const navigate = useNavigate();
     const [assignments, setAssignments] = useState(mockPermissions);
     const [isModalOpen, setModalOpen] = useState(false);
     
@@ -97,7 +100,8 @@ const ManagePermissionsScreen: React.FC = () => {
                     <h1 className="text-3xl font-bold">{t('managePermissions')}</h1>
                     <div className="flex items-center gap-2">
                         <Button icon={<PlusCircle size={18} />} onClick={() => setModalOpen(true)}>تعيين دور</Button>
-                        <Button onClick={() => setActiveView('dashboard')} variant="secondary">
+                        {/* FIX: Use navigate to go back to the dashboard. */}
+                        <Button onClick={() => navigate('/')} variant="secondary">
                             <ArrowRight size={16} className="me-2" />
                             رجوع
                         </Button>

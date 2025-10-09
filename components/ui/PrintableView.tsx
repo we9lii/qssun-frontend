@@ -60,6 +60,28 @@ const RenderPrintDetails: React.FC<{ report: Report }> = ({ report }) => {
                     <PrintInfoRow label="الملاحظات الفنية" value={maint.notes} />
                 </>
             );
+        case ReportType.Project:
+            const project = report.details as ProjectDetails;
+            return (
+                <>
+                    <PrintInfoRow label="مالك المشروع" value={project.projectOwner} />
+                    <PrintInfoRow label="موقع المشروع" value={project.location} />
+                    <PrintInfoRow label="حجم المشروع" value={project.size} />
+                    <PrintInfoRow label="تاريخ البدء" value={project.startDate} />
+                    <SectionTitle>المواصفات الفنية</SectionTitle>
+                    <PrintInfoRow label="نوع اللوح" value={project.panelType === 'other' ? project.customPanelType : project.panelType} />
+                    <PrintInfoRow label="عدد الألواح" value={project.panelCount} />
+                    <PrintInfoRow label="إجمالي القواعد" value={project.totalBases} />
+                    <SectionTitle>مراحل المشروع</SectionTitle>
+                    <ul className="list-disc pr-5 space-y-1">
+                        {project.updates.map(update => (
+                            <li key={update.id} className={update.completed ? 'text-green-600' : ''}>
+                                {update.label} {update.completed ? '(مكتمل)' : ''}
+                            </li>
+                        ))}
+                    </ul>
+                </>
+            );
         default:
             return <p>لا توجد تفاصيل مهيأة للطباعة لهذا التقرير.</p>
     }

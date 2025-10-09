@@ -1,7 +1,6 @@
-
-
 import React from 'react';
-import { Download, PlusCircle, Search, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Download, PlusCircle, Search, Trash2, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
 import { useAppContext } from '../../hooks/useAppContext';
 import { Badge } from '../../components/ui/Badge';
@@ -11,7 +10,7 @@ import { WorkflowRequest } from '../../types';
 import { WORKFLOW_STAGES } from '../../data/mockData';
 import { Input } from '../../components/ui/Input';
 import useAppStore from '../../store/useAppStore';
-import toast from 'react-hot-toast';
+import { differenceInHours, differenceInDays } from 'date-fns';
 
 interface WorkflowScreenProps {
     // Props removed
@@ -23,19 +22,119 @@ const priorityVariant: { [key: string]: 'destructive' | 'warning' | 'default' } 
     'منخفضة': 'default',
 }
 
-const WorkflowCard: React.FC<{ request: WorkflowRequest; onViewDetails: () => void; onDelete: () => void; }> = ({ request, onViewDetails, onDelete }) => {
+// Helper function for precise time ago formatting
+const timeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (seconds < 30) return `منذ بضع ثوان`;
+    
+    let interval = seconds / 31536000;
+    if (interval > 1) return `منذ ${Math.floor(interval)} سنوات`;
+    interval = seconds / 2592000;
+    if (interval > 1) return `منذ ${Math.floor(interval)} أشهر`;
+    interval = seconds / 86400;
+    if (interval > 1) return `منذ ${Math.floor(interval)} أيام`;
+    interval = seconds / 3600;
+    if (interval > 1) return `منذ ${Math.floor(interval)} ساعات`;
+    interval = seconds / 60;
+    if (interval > 1) return `منذ ${Math.floor(interval)} دقائق`;
+    return `منذ ${Math.floor(seconds)} ثوان`;
+};
+
+
+const LastUpdatedBadge: React.FC<{ date: string }> = ({ date }) => {
+    const now = new Date();
+    const modifiedDate = new Date(date);
+    const hoursDiff = differenceInHours(now, modifiedDate);
+    
+    let colorClass = 'bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300';
+    let pulseClass = '';
+
+    if (hoursDiff < 24) {
+        colorClass = 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+        pulseClass = 'animate-pulse-green';
+    } else if (hoursDiff < 168) { // Less than 7 days
+        colorClass = 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300';
+    }
+
+    return (
+        <div className={`text-xs flex items-center gap-1.5 mt-4 pt-4 border-t border-slate-200 dark:border-slate-600`}>
+             <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full ${colorClass}`}>
+                <div className={`w-2 h-2 rounded-full ${pulseClass} ${colorClass.split(' ')[0]}`}></div>
+                <Clock size={12} />
+                <span>آخر تحديث: {timeAgo(date)}</span>
+             </div>
+        </div>
+    );
+};
+
+const MiniDepartureCountdown: React.FC<{ request: WorkflowRequest }> = ({ request }) => {
+    if (request.currentStageId <= 2 || !request.expectedDepartureDate || isNaN(new Date(request.expectedDepartureDate).getTime())) {
+        return null;
+    }
+
+    const now = new Date();
+    const endDate = new Date(request.expectedDepartureDate);
+    
+    if (now > endDate) return null;
+
+    const daysLeft = differenceInDays(endDate, now);
+
+    let colorClass = 'text-success';
+    if (daysLeft <= 3) {
+        colorClass = 'text-destructive';
+    } else if (daysLeft <= 7) {
+        colorClass = 'text-warning';
+    }
+
+    const tooltipText = `يغادر خلال: ${daysLeft} يوم`;
+    
+    const radius = 8;
+    const circumference = 2 * Math.PI * radius;
+    // We don't have start date here, so we fake progress based on a 30-day window for visual effect
+    const progress = Math.max(0, 1 - (daysLeft / 30)); 
+    const strokeDashoffset = circumference - progress * circumference;
+
+    return (
+        <div className="absolute top-3 left-3" title={tooltipText}>
+            <svg className="w-5 h-5" viewBox="0 0 20 20">
+                <circle
+                    className="text-slate-200 dark:text-slate-600"
+                    stroke="currentColor" strokeWidth="2" fill="transparent" r={radius} cx="10" cy="10"
+                />
+                <circle
+                    className={`${colorClass} transition-colors duration-500`}
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="transparent" r={radius} cx="10" cy="10"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    transform="rotate(-90 10 10)"
+                />
+            </svg>
+        </div>
+    );
+};
+
+
+const WorkflowCard: React.FC<{ 
+    request: WorkflowRequest; 
+    onViewDetails: () => void;
+    onDelete: () => void; 
+}> = ({ request, onViewDetails, onDelete }) => {
     const currentStage = WORKFLOW_STAGES.find(s => s.id === request.currentStageId);
     return (
-        <Card className="hover:shadow-workflow transition-all duration-300 flex flex-col transform hover:-translate-y-1.5">
+        <Card className="relative hover:shadow-workflow transition-all duration-300 flex flex-col transform hover:-translate-y-1.5 group">
+            <MiniDepartureCountdown request={request} />
             <CardHeader>
                 <div className="flex justify-between items-start">
                     <div>
                         <CardTitle className="mb-1">{request.title}</CardTitle>
                         <p className="text-xs text-slate-500 font-mono">{request.id}</p>
                     </div>
-                     <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                         <Badge variant={priorityVariant[request.priority]}>{request.priority}</Badge>
-                        <Button variant="ghost" size="sm" className="p-1 h-auto text-destructive hover:bg-destructive/10" onClick={onDelete} aria-label="Delete request">
+                        <Button variant="ghost" size="sm" className="p-1 h-auto text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={onDelete}>
                             <Trash2 size={16} />
                         </Button>
                     </div>
@@ -49,10 +148,13 @@ const WorkflowCard: React.FC<{ request: WorkflowRequest; onViewDetails: () => vo
                     </div>
                     <p className="text-xs text-slate-400 mt-1 text-center">{request.currentStageId} / {WORKFLOW_STAGES.length}</p>
                 </div>
-                <div className="flex justify-between items-center text-sm text-slate-500 border-t pt-4">
+                <div className="flex justify-between items-center text-sm text-slate-500">
                     <span>{request.type === 'استيراد' ? '📥' : '📤'} {request.type}</span>
                     <span>{new Date(request.creationDate).toLocaleDateString('ar-SA')}</span>
                 </div>
+                {request.lastModified && !isNaN(new Date(request.lastModified).getTime()) && (
+                    <LastUpdatedBadge date={request.lastModified} />
+                )}
             </CardContent>
             <CardFooter>
                 <Button variant="secondary" className="w-full" onClick={onViewDetails}>عرض التفاصيل</Button>
@@ -62,24 +164,17 @@ const WorkflowCard: React.FC<{ request: WorkflowRequest; onViewDetails: () => vo
 }
 
 const WorkflowScreen: React.FC<WorkflowScreenProps> = () => {
-    const { t } = useAppContext();
-    const { requests, setActiveWorkflowId, setWorkflowModalOpen, setActiveView, openConfirmation, deleteRequest } = useAppStore();
-    
-    const handleDelete = (requestId: string) => {
+    const { t, user } = useAppContext();
+    const { requests, setWorkflowModalOpen, deleteRequest, openConfirmation } = useAppStore();
+    const navigate = useNavigate();
+
+    const handleDeleteRequest = (requestId: string) => {
+        if (!user) return;
         openConfirmation(
             'هل أنت متأكد من حذف هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.',
-            async () => {
-                try {
-                    await deleteRequest(requestId);
-                    toast.success('تم حذف الطلب بنجاح!');
-                } catch (error) {
-                    // Error is already toasted in the store
-                    console.error("Deletion failed:", error);
-                }
-            }
+            () => deleteRequest(requestId, user.employeeId)
         );
     };
-
 
     return (
         <div className="space-y-6">
@@ -87,7 +182,7 @@ const WorkflowScreen: React.FC<WorkflowScreenProps> = () => {
                 icon={Download} 
                 title={t('importExport')} 
                 colorClass="bg-nav-workflow"
-                onBack={() => setActiveView('dashboard')}
+                onBack="/"
                 actionButton={
                     <>
                         {/* Desktop Button */}
@@ -139,7 +234,14 @@ const WorkflowScreen: React.FC<WorkflowScreenProps> = () => {
 
             {requests && requests.length > 0 ? (
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {requests.map(req => <WorkflowCard key={req.id} request={req} onViewDetails={() => setActiveWorkflowId(req.id)} onDelete={() => handleDelete(req.id)} />)}
+                    {requests.map(req => 
+                        <WorkflowCard 
+                            key={req.id} 
+                            request={req} 
+                            onViewDetails={() => navigate(`/workflow/${req.id}`)}
+                            onDelete={() => handleDeleteRequest(req.id)}
+                        />
+                    )}
                 </div>
             ) : (
                 <Card>

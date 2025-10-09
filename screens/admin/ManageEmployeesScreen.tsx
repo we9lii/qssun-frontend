@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Search, Edit, Trash2, ArrowRight, Download, Users, User as UserIcon } from 'lucide-react';
 import { useAppContext } from '../../hooks/useAppContext';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
@@ -142,8 +143,8 @@ const ManageEmployeesScreen: React.FC = () => {
       updateUser,
       deleteUser,
       openConfirmation, 
-      setActiveView 
   } = useAppStore();
+  const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
@@ -219,7 +220,7 @@ const ManageEmployeesScreen: React.FC = () => {
             <div className="flex items-center gap-2">
                 <Button icon={<Download size={18} />} onClick={handleExport} variant="secondary">تصدير</Button>
                 <Button icon={<PlusCircle size={18} />} onClick={handleAddClick}>إضافة موظف</Button>
-                <Button onClick={() => setActiveView('dashboard')} variant="secondary">
+                <Button onClick={() => navigate('/')} variant="secondary">
                     <ArrowRight size={16} className="me-2" />
                     رجوع
                 </Button>

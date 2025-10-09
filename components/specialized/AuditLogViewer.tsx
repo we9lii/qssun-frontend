@@ -1,8 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { mockAuditLogs } from '../../data/mockData';
-import { formatDistanceToNow } from 'date-fns';
-import { arSA } from 'date-fns/locale';
 import { Plus, Edit3, Trash2, LogIn, FileDown, Eye, ShieldAlert } from 'lucide-react';
 import { AuditLog, AuditLogAction } from '../../types';
 import { Badge } from '../ui/Badge';
@@ -16,6 +14,28 @@ const actionDetails: { [key in AuditLogAction]: { icon: React.ElementType, color
     [AuditLogAction.Export]: { icon: FileDown, color: 'text-indigo-500', label: 'تصدير' },
     [AuditLogAction.View]: { icon: Eye, color: 'text-gray-500', label: 'عرض' },
 };
+
+// Helper function for precise time ago formatting
+const timeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (seconds < 30) return `منذ بضع ثوان`;
+    
+    let interval = seconds / 31536000;
+    if (interval > 1) return `منذ ${Math.floor(interval)} سنوات`;
+    interval = seconds / 2592000;
+    if (interval > 1) return `منذ ${Math.floor(interval)} أشهر`;
+    interval = seconds / 86400;
+    if (interval > 1) return `منذ ${Math.floor(interval)} أيام`;
+    interval = seconds / 3600;
+    if (interval > 1) return `منذ ${Math.floor(interval)} ساعات`;
+    interval = seconds / 60;
+    if (interval > 1) return `منذ ${Math.floor(interval)} دقائق`;
+    return `منذ ${Math.floor(seconds)} ثوان`;
+};
+
 
 const LogItem: React.FC<{ log: AuditLog }> = ({ log }) => {
     const details = actionDetails[log.action];
@@ -32,7 +52,7 @@ const LogItem: React.FC<{ log: AuditLog }> = ({ log }) => {
                     <span className="text-slate-500 dark:text-slate-400 font-normal"> {log.description}</span>
                 </p>
                 <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
-                    <span>{formatDistanceToNow(new Date(log.timestamp), { addSuffix: true, locale: arSA } as any)}</span>
+                    <span>{timeAgo(log.timestamp)}</span>
                     <span className="w-1 h-1 bg-slate-400 rounded-full"></span>
                     <Badge variant="default" className="text-xs">{label}</Badge>
                     {log.targetType && <Badge variant="default" className="text-xs">{log.targetType}</Badge>}

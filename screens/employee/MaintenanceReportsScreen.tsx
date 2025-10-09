@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Wrench, Settings, Eye, CheckCircle, MapPin, Camera, Upload, Trash2, Clock, Hammer, FileText, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -33,7 +34,8 @@ interface MaintenanceReportsScreenProps {
 
 const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ reportToEdit }) => {
     const { user } = useAppContext();
-    const { addReport, updateReport, setActiveView } = useAppStore();
+    const { addReport, updateReport } = useAppStore();
+    const navigate = useNavigate();
     const [beforeImages, setBeforeImages] = useState<MaintenanceImage[]>([]);
     const [afterImages, setAfterImages] = useState<MaintenanceImage[]>([]);
     const [activeService, setActiveService] = useState<ServiceType>('repair');
@@ -159,7 +161,7 @@ const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ rep
                 toast.success('تم حفظ تقرير الصيانة بنجاح!');
             }
             
-            setActiveView('log');
+            navigate('/log');
         } finally {
             setIsSaving(false);
         }
@@ -202,7 +204,7 @@ const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ rep
                 icon={Wrench} 
                 title={isEditMode ? "تعديل تقرير صيانة" : "تقرير صيانة / ضمان"}
                 colorClass="bg-nav-maintenance"
-                onBack={() => setActiveView(isEditMode ? 'log' : 'dashboard')}
+                onBack={isEditMode ? '/log' : '/'}
             />
             <Card>
                 <CardContent className="pt-6">

@@ -8,10 +8,6 @@ import 'jspdf-autotable';
 import { cairoFont } from '../../utils/CairoFontBase64';
 import { logoImage } from '../../utils/LogoImageBase64';
 import { Briefcase, FileDown } from 'lucide-react';
-import useAppStore from '../../store/useAppStore';
-
-// Fix: Removed module augmentation for jspdf as it was causing type resolution errors.
-// The autoTable method will be called using a type assertion `as any` instead.
 
 interface QuotationOffer {
     name: string;
@@ -30,7 +26,6 @@ interface QuotationResult {
 }
 
 const CreateQuotationScreen: React.FC = () => {
-    const { setActiveView } = useAppStore();
     const [customerName, setCustomerName] = useState('');
     const [horsepower, setHorsepower] = useState('');
     const [quotation, setQuotation] = useState<QuotationResult | null>(null);
@@ -67,7 +62,6 @@ const CreateQuotationScreen: React.FC = () => {
 
         const doc = new jsPDF('p', 'pt', 'a4');
         
-        // Add Cairo Font for Arabic support
         doc.addFileToVFS('Cairo-Regular.ttf', cairoFont);
         doc.addFont('Cairo-Regular.ttf', 'Cairo', 'normal');
         doc.setFont('Cairo');
@@ -79,7 +73,6 @@ const CreateQuotationScreen: React.FC = () => {
             doc.text(text, x, y, { align: 'right', ...options });
         };
         
-        // Header - Use embedded Base64 logo
         doc.addImage(logoImage, 'PNG', 40, 40, 100, 35);
 
         doc.setFontSize(9);
@@ -89,7 +82,6 @@ const CreateQuotationScreen: React.FC = () => {
         arabicText("الرقم الضريبي : 123456789012345", pageWidth - 40, 84);
         arabicText("س.ت : 123456789", pageWidth - 40, 97);
 
-        // Title
         doc.setFontSize(16);
         doc.text("العرض الفني والمالي", pageWidth / 2, 140, { align: 'center' });
         
@@ -97,19 +89,15 @@ const CreateQuotationScreen: React.FC = () => {
         arabicText(`التاريخ: ${new Date().toLocaleDateString('ar-SA')}`, pageWidth - 40, 160);
         arabicText(`رقم العرض: QSN-${Date.now().toString().slice(-6)}`, pageWidth - 40, 175);
         
-        // Customer Info
         arabicText("بسم الله الرحمن الرحيم", pageWidth - 40, 210);
         arabicText(`المكرم / ${quotation.customer_name} حفظه الله`, pageWidth - 40, 235);
         arabicText("السلام عليكم ورحمة الله وبركاته", pageWidth - 40, 260);
         arabicText("تحية طيبة وبعد ..", pageWidth - 40, 285);
         
-        // Main Text
         const mainText = `حسب الاجتماع الذي دار معكم ومن خلال النقاش حول تشغيل عدد (1) رأس كهرباء بقدرة (${quotation.horsepower}) حصان على الطاقة الشمسية يسرنا نحن شركة مدائن المستقبل للطاقة أن نقدم لكم عرضنا الفني والمالي لتشغيل النظام الكهروضوئي على النحو التالي :`;
         const splitText = doc.splitTextToSize(mainText, pageWidth - 80);
         arabicText(splitText, pageWidth - 40, 310);
         
-        // Table using jspdf-autotable
-        // Fix: Cast `doc` to `any` to allow calling the `autoTable` method from the plugin without TypeScript errors.
         (doc as any).autoTable({
             startY: 370,
             head: [['العرض الثالث', 'العرض الثاني', 'العرض الأول', 'البيان']],
@@ -130,7 +118,6 @@ const CreateQuotationScreen: React.FC = () => {
 
         const finalY = (doc as any).lastAutoTable.finalY;
 
-        // Terms and Conditions
         doc.setFontSize(10);
         let yPos = finalY + 30;
         
@@ -211,7 +198,7 @@ const CreateQuotationScreen: React.FC = () => {
                 icon={Briefcase}
                 title="إنشاء عرض سعر"
                 colorClass="bg-nav-project"
-                onBack={() => setActiveView('projects')}
+                onBack="/projects"
             />
 
             <Card>

@@ -1,6 +1,6 @@
-
-
 import React from 'react';
+// FIX: Import useNavigate for routing.
+import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { useAppContext } from '../../hooks/useAppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -47,7 +47,8 @@ const kpiCards = [
 
 const AdminAnalyticsScreen: React.FC = () => {
   const { t } = useAppContext();
-  const { setActiveView } = useAppStore();
+  // FIX: Remove setActiveView from destructuring as it does not exist.
+  const navigate = useNavigate();
 
   return (
     <div className="space-y-6">
@@ -64,7 +65,8 @@ const AdminAnalyticsScreen: React.FC = () => {
                         <option>جدة</option>
                     </select>
                 </div>
-                <Button onClick={() => setActiveView('dashboard')} variant="secondary">
+                {/* FIX: Use navigate to go back to the dashboard. */}
+                <Button onClick={() => navigate('/')} variant="secondary">
                     <ArrowRight size={16} className="me-2" />
                     رجوع
                 </Button>

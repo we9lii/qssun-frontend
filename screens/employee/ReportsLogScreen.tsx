@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, SlidersHorizontal, Eye, Printer, Edit, BarChart2, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, SlidersHorizontal, Eye, Printer, Edit, BarChart2, Trash2, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { useAppContext } from '../../hooks/useAppContext';
 import { Input } from '../../components/ui/Input';
@@ -20,8 +21,8 @@ const statusVariant: { [key in ReportStatus]: 'success' | 'warning' | 'destructi
 const typeColors: { [key in ReportType]: string } = {
     [ReportType.Sales]: 'border-report-sales',
     [ReportType.Maintenance]: 'border-report-maintenance',
-    [ReportType.Project]: 'border-report-project',
     [ReportType.Inquiry]: 'border-report-inquiry',
+    [ReportType.Project]: 'border-report-project',
 };
 
 interface ReportsLogScreenProps {
@@ -32,15 +33,13 @@ const ReportsLogScreen: React.FC<ReportsLogScreenProps> = () => {
     const { t, user } = useAppContext();
     const { 
         reports, 
-        viewReport, 
-        editReport, 
         printReport, 
-        setActiveView, 
         deleteReport, 
         openConfirmation,
         reportsLogFilters,
-        setReportsLogFilters
+        setReportsLogFilters,
     } = useAppStore();
+    const navigate = useNavigate();
     
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
@@ -81,10 +80,22 @@ const ReportsLogScreen: React.FC<ReportsLogScreenProps> = () => {
     const handleDelete = (reportId: string) => {
         openConfirmation('هل أنت متأكد من حذف هذا التقرير؟ لا يمكن التراجع عن هذا الإجراء.', () => {
             deleteReport(reportId);
-            toast.success('تم حذف التقرير بنجاح!');
         });
     };
 
+    const handleEdit = (report: Report) => {
+        const editPathMap: { [key in ReportType]?: string } = {
+            [ReportType.Sales]: `/sales/edit/${report.id}`,
+            [ReportType.Maintenance]: `/maintenance/edit/${report.id}`,
+            [ReportType.Project]: `/projects/edit/${report.id}`,
+        };
+        const path = editPathMap[report.type];
+        if (path) {
+            navigate(path);
+        } else {
+            toast.error('لا يمكن تعديل هذا النوع من التقارير.');
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -92,7 +103,7 @@ const ReportsLogScreen: React.FC<ReportsLogScreenProps> = () => {
                 icon={BarChart2} 
                 title={t('reportsLog')} 
                 colorClass="bg-nav-log"
-                onBack={() => setActiveView('dashboard')}
+                onBack="/"
             />
             <Card>
                 <CardContent className="pt-6">
@@ -149,10 +160,10 @@ const ReportsLogScreen: React.FC<ReportsLogScreenProps> = () => {
                                     <td className="px-6 py-4">{report.type}</td>
                                     <td className="px-6 py-4">{new Date(report.date).toLocaleDateString('ar-SA')}</td>
                                     <td className="px-6 py-4"><Badge variant={statusVariant[report.status]}>{report.status}</Badge></td>
-                                    <td className="px-6 py-4 flex gap-1">
-                                        <Button variant="ghost" size="sm" className="p-2 h-auto" title="عرض" onClick={() => viewReport(report.id)}><Eye size={16} /></Button>
+                                    <td className="px-6 py-4 flex flex-wrap gap-1">
+                                        <Button variant="ghost" size="sm" className="p-2 h-auto" title="عرض" onClick={() => navigate(`/reports/${report.id}`)}><Eye size={16} /></Button>
                                         <Button variant="ghost" size="sm" className="p-2 h-auto" title="طباعة" onClick={() => printReport(report.id)}><Printer size={16} /></Button>
-                                        <Button variant="ghost" size="sm" className="p-2 h-auto" title="تعديل" onClick={() => editReport(report)}><Edit size={16} /></Button>
+                                        <Button variant="ghost" size="sm" className="p-2 h-auto" title="تعديل" onClick={() => handleEdit(report)}><Edit size={16} /></Button>
                                         <Button variant="ghost" size="sm" className="p-2 h-auto text-destructive hover:bg-destructive/10" title="حذف" onClick={() => handleDelete(report.id)}><Trash2 size={16} /></Button>
                                     </td>
                                     </tr>
@@ -165,7 +176,7 @@ const ReportsLogScreen: React.FC<ReportsLogScreenProps> = () => {
                             icon={BarChart2}
                             title="لا توجد تقارير مطابقة"
                             message={employeeReports.length > 0 ? "لا توجد تقارير تطابق معايير الفلترة الحالية." : "لم تقم بإنشاء أي تقارير بعد. اذهب إلى لوحة التحكم لإنشاء تقرير جديد."}
-                            action={employeeReports.length > 0 ? undefined : <Button onClick={() => setActiveView('dashboard')}>الذهاب للوحة التحكم</Button>}
+                            action={employeeReports.length > 0 ? undefined : <Button onClick={() => navigate('/')}>الذهاب للوحة التحكم</Button>}
                         />
                     )}
 

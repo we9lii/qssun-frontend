@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Search, Edit, Trash2, ArrowRight, Building2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -84,12 +85,12 @@ const ManageBranchesScreen: React.FC = () => {
   const { t } = useAppContext();
   const { 
       branches, 
-      setActiveView, 
       openConfirmation,
       addBranch,
       updateBranch,
       deleteBranch,
   } = useAppStore();
+  const navigate = useNavigate();
   
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
@@ -130,7 +131,7 @@ const ManageBranchesScreen: React.FC = () => {
             <h1 className="text-3xl font-bold">{t('manageBranches')}</h1>
             <div className="flex items-center gap-2">
                 <Button icon={<PlusCircle size={18} />} onClick={handleAddClick}>إضافة فرع</Button>
-                <Button onClick={() => setActiveView('dashboard')} variant="secondary">
+                <Button onClick={() => navigate('/')} variant="secondary">
                     <ArrowRight size={16} className="me-2" />
                     رجوع
                 </Button>

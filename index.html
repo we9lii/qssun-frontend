@@ -294,28 +294,81 @@
       .animate-welcome-marquee {
         animation: welcome-marquee 30s linear 1 forwards;
       }
+
+      /* --- NEW COUNTDOWN & BADGE STYLES --- */
+      @keyframes colorShift {
+        0% { filter: hue-rotate(-10deg) brightness(1); }
+        50% { filter: hue-rotate(10deg) brightness(1.1); }
+        100% { filter: hue-rotate(-10deg) brightness(1); }
+      }
+
+      @keyframes pulse-green {
+        0%, 100% {
+          box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        }
+        50% {
+          box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+        }
+      }
+      .animate-pulse-green {
+        animation: pulse-green 2s infinite;
+      }
+      
+      /* New pulse for red countdown */
+      @keyframes pulse-red {
+        0%, 100% {
+          box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+        }
+        50% {
+          box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+        }
+      }
+      .animate-pulse-red {
+        animation: pulse-red 1.5s infinite;
+      }
+
+      /* New animation for notification bell */
+      @keyframes pulse-red-dot {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.6); opacity: 0.7; }
+      }
+      .animate-pulse-red-dot {
+        animation: pulse-red-dot 1.5s infinite cubic-bezier(0.4, 0, 0.6, 1);
+      }
+      
+      /* Animation for dropdowns */
+      @keyframes dropdown-pop-in {
+        from { opacity: 0; transform: scale(0.95) translateY(-5px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      .animate-dropdown-pop-in {
+        animation: dropdown-pop-in 0.2s ease-out forwards;
+        transform-origin: top left;
+      }
+
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react-dom": "https://aistudiocdn.com/react-dom@^19.1.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "recharts": "https://aistudiocdn.com/recharts@^3.2.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.543.0",
-    "@tanstack/react-query": "https://aistudiocdn.com/@tanstack/react-query@^5.51.1",
-    "react-hook-form": "https://aistudiocdn.com/react-hook-form@^7.52.1",
-    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
-    "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^3.8.2",
-    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
-    "date-fns/": "https://aistudiocdn.com/date-fns@^3.6.0/",
-    "xlsx": "https://aistudiocdn.com/xlsx@^0.18.5",
-    "date-fns": "https://aistudiocdn.com/date-fns@^4.1.0",
-    "zustand": "https://aistudiocdn.com/zustand@^4.5.4",
-    "zustand/": "https://aistudiocdn.com/zustand@^4.5.4/",
-    "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.4.1",
-    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.57.4"
+    "react": "https://esm.sh/react@18.3.1",
+    "react/": "https://esm.sh/react@18.3.1/",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
+    "react-router-dom": "https://esm.sh/react-router-dom@6.23.1",
+    "react-hook-form": "https://esm.sh/react-hook-form@7.51.5",
+    "lucide-react": "https://esm.sh/lucide-react@0.395.0",
+    "zustand": "https://esm.sh/zustand@4.5.2",
+    "zustand/": "https://esm.sh/zustand@4.5.2/",
+    "react-hot-toast": "https://esm.sh/react-hot-toast@2.4.1",
+    "recharts": "https://esm.sh/recharts@2.12.7",
+    "date-fns": "https://esm.sh/date-fns@3.6.0",
+    "date-fns/": "https://esm.sh/date-fns@3.6.0/",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.8.2",
+    "xlsx": "https://esm.sh/xlsx@0.18.5",
+    "@capacitor/core": "https://esm.sh/@capacitor/core@5.7.0",
+    "@capacitor/push-notifications": "https://esm.sh/@capacitor/push-notifications@5.1.1",
+    "@capacitor/cli": "https://aistudiocdn.com/@capacitor/cli@^7.4.3"
   }
 }
 </script>

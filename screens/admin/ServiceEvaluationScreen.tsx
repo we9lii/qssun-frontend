@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+// FIX: Import useNavigate for routing.
+import { useNavigate } from 'react-router-dom';
 import { Search, Star as StarIcon, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
 import { useAppContext } from '../../hooks/useAppContext';
@@ -14,13 +16,16 @@ import toast from 'react-hot-toast';
 const typeIcon: { [key in ReportType]: string } = {
     [ReportType.Sales]: '📈',
     [ReportType.Maintenance]: '🔧',
+    // FIX: Added icon for Project report type.
     [ReportType.Project]: '🏗️',
     [ReportType.Inquiry]: '❓',
 };
 
 const ServiceEvaluationScreen: React.FC = () => {
     const { t, user } = useAppContext();
-    const { reports, updateReport, setActiveView } = useAppStore();
+    // FIX: Remove setActiveView from destructuring as it does not exist.
+    const { reports, updateReport } = useAppStore();
+    const navigate = useNavigate();
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
     // FIX: Made function async and fixed argument count for updateReport.
@@ -39,7 +44,8 @@ const ServiceEvaluationScreen: React.FC = () => {
             <div className="space-y-6">
                  <div className="flex justify-between items-center">
                     <h1 className="text-3xl font-bold">{t('serviceEvaluation')}</h1>
-                    <Button onClick={() => setActiveView('dashboard')} variant="secondary">
+                    {/* FIX: Use navigate to go back to the dashboard. */}
+                    <Button onClick={() => navigate('/')} variant="secondary">
                         <ArrowRight size={16} className="me-2" />
                         رجوع
                     </Button>

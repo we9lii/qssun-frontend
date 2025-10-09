@@ -1,11 +1,10 @@
 import { create } from 'zustand';
-import { User, Report, ReportType, WorkflowRequest, ReportStatus, Role, Branch, ChatSession, ChatMessage, MaintenanceDetails, ProjectUpdate, SalesCustomer, ReportEvaluation, WorkflowDocument } from '../types';
+import { User, Report, ReportType, WorkflowRequest, ReportStatus, Role, Branch, ChatSession, ChatMessage, MaintenanceDetails, SalesCustomer, ReportEvaluation, WorkflowDocument, StageHistoryItem, TechnicalTeam, ProjectDetails, ProjectWorkflowStatus, ProjectUpdateFile, ProjectUpdate, AdminNote, AdminNoteReply, BellNotification } from '../types';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../config'; // Import from the central config file
 
 interface AppState {
     // UI State & App Lifecycle
-    activeView: string;
     isSidebarCollapsed: boolean;
     isMobileMenuOpen: boolean;
     isWorkflowModalOpen: boolean;
@@ -14,55 +13,55 @@ interface AppState {
         message: string;
         onConfirm: () => void;
     };
-    viewingEmployeeId: string | null;
     reportsLogFilters: { status: ReportStatus } | null; // For employee log
     allReportsFilters: { type?: ReportType; status?: ReportStatus } | null; // For admin view
     isDataLoading: boolean;
     
-    setActiveView: (view: string) => void;
     toggleSidebar: () => void;
     setMobileMenuOpen: (isOpen: boolean) => void;
     setWorkflowModalOpen: (isOpen: boolean) => void;
     openConfirmation: (message: string, onConfirm: () => void) => void;
     closeConfirmation: () => void;
-    viewEmployeeProfile: (employeeId: string) => void;
-    clearViewingEmployeeId: () => void;
     setReportsLogFilters: (filters: { status: ReportStatus } | null) => void;
     setAllReportsFilters: (filters: { type?: ReportType; status?: ReportStatus } | null) => void;
-    fetchInitialData: () => Promise<void>;
+    fetchInitialData: (user: User) => Promise<void>;
 
     // Workflow State
     requests: WorkflowRequest[];
-    activeWorkflowId: string | null;
-    setActiveWorkflowId: (id: string | null) => void;
     createRequest: (request: Omit<WorkflowRequest, 'id'>) => Promise<void>;
     updateRequest: (request: WorkflowRequest, files?: { file: File, type: string, id: string }[]) => Promise<void>;
-    deleteRequest: (requestId: string) => Promise<void>;
+    deleteRequest: (requestId: string, employeeId: string) => Promise<void>;
 
     // Reports State
     reports: Report[];
-    activeReportId: string | null;
-    editingReportId: string | null;
     reportForPrinting: Report | null;
-    setActiveReportId: (id: string | null) => void;
-    setEditingReportId: (id: string | null) => void;
     addReport: (report: Omit<Report, 'id'>) => Promise<void>;
     updateReport: (report: Report) => Promise<void>;
     deleteReport: (reportId: string) => Promise<void>;
-    viewReport: (reportId: string) => void;
-    editReport: (report: Report) => void;
     printReport: (reportId: string) => void;
     clearReportForPrinting: () => void;
+    acceptProjectAssignment: (projectId: string) => Promise<void>;
+    confirmProjectStage: (projectId: string, stageId: string, files: File[], comment: string, employeeId: string) => Promise<void>;
+    addProjectException: (reportId: string, files: File[], comment: string, employeeId: string) => Promise<void>;
+    addAdminNote: (reportId: string, content: string, author: User) => Promise<void>;
+    addAdminNoteReply: (reportId: string, noteId: string, content: string, author: User) => Promise<void>;
+    markNotesAsRead: (reportId: string, userId: string) => Promise<void>;
+
 
     // Admin Data State
     users: User[];
     branches: Branch[];
+    technicalTeams: TechnicalTeam[];
+    currentUserLedTeam: TechnicalTeam | null;
     addUser: (userData: Omit<User, 'id' | 'joinDate'> & { password?: string }) => Promise<void>;
     updateUser: (userData: Partial<User> & { id: string }) => Promise<void>;
     deleteUser: (userId: string) => Promise<void>;
     addBranch: (branchData: Omit<Branch, 'id'|'creationDate'>) => Promise<void>;
     updateBranch: (branchData: Partial<Branch> & {id: string}) => Promise<void>;
     deleteBranch: (branchId: string) => Promise<void>;
+    addTechnicalTeam: (teamData: Omit<TechnicalTeam, 'id' | 'creationDate' | 'leaderName'>) => Promise<void>;
+    updateTechnicalTeam: (teamData: Omit<TechnicalTeam, 'creationDate' | 'leaderName'>) => Promise<void>;
+    deleteTechnicalTeam: (teamId: string) => Promise<void>;
 
     // AI Chat State
     chatSessions: ChatSession[];
@@ -72,6 +71,11 @@ interface AppState {
     deleteSession: (sessionId: string) => void;
     sendQuickChatMessage: (messageContent: string, user: User) => void;
     clearQuickChat: () => void;
+
+    // Notification State
+    notifications: BellNotification[];
+    unreadNotificationCount: number;
+    markNotificationsAsRead: (userId: string) => Promise<void>;
 }
 
 const initialChatSession: ChatSession = {
@@ -85,7 +89,6 @@ const initialChatSession: ChatSession = {
 
 const useAppStore = create<AppState>((set, get) => ({
     // UI State & App Lifecycle
-    activeView: 'dashboard',
     isSidebarCollapsed: false,
     isMobileMenuOpen: false,
     isWorkflowModalOpen: false,
@@ -94,46 +97,57 @@ const useAppStore = create<AppState>((set, get) => ({
         message: '',
         onConfirm: () => {},
     },
-    viewingEmployeeId: null,
     reportsLogFilters: null,
     allReportsFilters: null,
     isDataLoading: true,
     
-    setActiveView: (view) => set({ activeView: view, viewingEmployeeId: null }),
     toggleSidebar: () => set(state => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
     setMobileMenuOpen: (isOpen) => set({ isMobileMenuOpen: isOpen }),
     setWorkflowModalOpen: (isOpen) => set({ isWorkflowModalOpen: isOpen }),
     openConfirmation: (message, onConfirm) => set({ confirmationState: { isOpen: true, message, onConfirm } }),
     closeConfirmation: () => set({ confirmationState: { isOpen: false, message: '', onConfirm: () => {} } }),
-    viewEmployeeProfile: (employeeId) => set({ viewingEmployeeId: employeeId, activeView: 'adminEmployeeDetail' }),
-    clearViewingEmployeeId: () => set({ viewingEmployeeId: null }),
     setReportsLogFilters: (filters) => set({ reportsLogFilters: filters }),
     setAllReportsFilters: (filters) => set({ allReportsFilters: filters }),
-    fetchInitialData: async () => {
+    fetchInitialData: async (user) => {
         set({ isDataLoading: true });
         try {
-            const [reportsRes, usersRes, branchesRes, workflowRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/reports`),
+            const [reportsRes, usersRes, branchesRes, workflowRes, teamsRes, notificationsRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/reports`, {
+                    headers: { 'X-User-Id': user.id, 'X-User-Role': user.role }
+                }),
                 fetch(`${API_BASE_URL}/users`),
                 fetch(`${API_BASE_URL}/branches`),
-                fetch(`${API_BASE_URL}/workflow-requests`) // Corrected endpoint
+                fetch(`${API_BASE_URL}/workflow-requests`),
+                fetch(`${API_BASE_URL}/teams`),
+                fetch(`${API_BASE_URL}/notifications/${user.id}`),
             ]);
 
             if (!reportsRes.ok) throw new Error('Failed to fetch reports');
             if (!usersRes.ok) throw new Error('Failed to fetch users');
             if (!branchesRes.ok) throw new Error('Failed to fetch branches');
             if (!workflowRes.ok) throw new Error('Failed to fetch workflow requests');
+            if (!teamsRes.ok) throw new Error('Failed to fetch technical teams');
+            if (!notificationsRes.ok) throw new Error('Failed to fetch notifications');
 
             const reportsFromServer = await reportsRes.json();
             const usersFromServer = await usersRes.json();
             const branchesFromServer = await branchesRes.json();
             const workflowRequestsFromServer = await workflowRes.json();
+            const teamsFromServer = await teamsRes.json();
+            const notificationsFromServer: BellNotification[] = await notificationsRes.json();
+            
+            const unreadNotificationCount = notificationsFromServer.filter(n => !n.isRead).length;
+            const currentUserLedTeam = teamsFromServer.find((team: TechnicalTeam) => team.leaderId === user.id) || null;
 
             set({
                 reports: reportsFromServer,
                 users: usersFromServer,
                 branches: branchesFromServer,
                 requests: workflowRequestsFromServer,
+                technicalTeams: teamsFromServer,
+                notifications: notificationsFromServer,
+                unreadNotificationCount,
+                currentUserLedTeam,
                 isDataLoading: false
             });
         } catch (error: any) {
@@ -145,8 +159,6 @@ const useAppStore = create<AppState>((set, get) => ({
 
     // Workflow State
     requests: [],
-    activeWorkflowId: null,
-    setActiveWorkflowId: (id) => set({ activeWorkflowId: id }),
     createRequest: async (requestData) => {
         try {
             const response = await fetch(`${API_BASE_URL}/workflow-requests`, {
@@ -173,7 +185,19 @@ const useAppStore = create<AppState>((set, get) => ({
     },
     updateRequest: async (request, files) => {
         const formData = new FormData();
-        formData.append('requestData', JSON.stringify(request));
+
+        const requestPayload = {
+            ...request,
+            stageHistory: request.stageHistory.map(stage => ({
+                ...stage,
+                documents: stage.documents.map(doc => {
+                    const { file, ...serializableDoc } = doc;
+                    return serializableDoc;
+                })
+            }))
+        };
+
+        formData.append('requestData', JSON.stringify(requestPayload));
 
         if (files) {
             files.forEach(fileData => {
@@ -205,29 +229,21 @@ const useAppStore = create<AppState>((set, get) => ({
             throw error; // Re-throw to be caught in component
         }
     },
-    deleteRequest: async (requestId) => {
+    deleteRequest: async (requestId, employeeId) => {
         try {
             const response = await fetch(`${API_BASE_URL}/workflow-requests/${requestId}`, {
                 method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employeeId }), // Pass employeeId for middleware permission check
             });
-    
             if (!response.ok) {
-                const errorText = await response.text();
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    throw new Error(errorJson.message || 'Failed to delete workflow request.');
-                } catch (e) {
-                    console.error("Non-JSON error response:", errorText);
-                    throw new Error('Server returned a non-JSON error response.');
-                }
+                const errorData = await response.json().catch(() => ({ message: 'فشل الحذف من الخادم' }));
+                throw new Error(errorData.message);
             }
-            
             set(state => ({
                 requests: state.requests.filter(r => r.id !== requestId),
-                activeWorkflowId: state.activeWorkflowId === requestId ? null : state.activeWorkflowId,
             }));
-            toast.success('تم حذف الطلب بنجاح!');
-    
+            toast.success('تم حذف طلب سير العمل بنجاح!');
         } catch (error: any) {
             console.error("Failed to delete workflow request:", error);
             toast.error(`فشل حذف الطلب: ${error.message}`);
@@ -237,40 +253,41 @@ const useAppStore = create<AppState>((set, get) => ({
 
     // Reports State
     reports: [],
-    activeReportId: null,
-    editingReportId: null,
     reportForPrinting: null,
-    setActiveReportId: (id) => set({ activeReportId: id }),
-    setEditingReportId: (id) => set({ editingReportId: id }),
     addReport: async (reportData) => {
         const formData = new FormData();
         const detailsCopy = JSON.parse(JSON.stringify(reportData.details));
 
         if (reportData.type === ReportType.Maintenance) {
-            (detailsCopy.beforeImages || []).forEach((img: any) => { if(img.file) formData.append('maintenance_beforeImages', img.file); });
-            (detailsCopy.afterImages || []).forEach((img: any) => { if(img.file) formData.append('maintenance_afterImages', img.file); });
+            (reportData.details.beforeImages || []).forEach((img: any) => {
+                if (img.file instanceof File) formData.append('maintenance_beforeImages', img.file);
+            });
+            (reportData.details.afterImages || []).forEach((img: any) => {
+                if (img.file instanceof File) formData.append('maintenance_afterImages', img.file);
+            });
             delete detailsCopy.beforeImages;
             delete detailsCopy.afterImages;
+
         } else if (reportData.type === ReportType.Sales) {
-            (reportData.details.customers || []).forEach((customer: SalesCustomer, cIndex: number) => {
+             (reportData.details.customers || []).forEach((customer: SalesCustomer, cIndex: number) => {
                 (customer.files || []).forEach((fileObj) => {
                     if (fileObj.file instanceof File) {
                         formData.append(`sales_customer_${cIndex}_files`, fileObj.file);
                     }
                 });
-                if (detailsCopy.customers[cIndex]) {
+                if (detailsCopy.customers && detailsCopy.customers[cIndex]) {
                    delete detailsCopy.customers[cIndex].files;
                 }
             });
         } else if (reportData.type === ReportType.Project) {
             (reportData.details.updates || []).forEach((update: ProjectUpdate, uIndex: number) => {
                 (update.files || []).forEach((fileObj) => {
-                     if (fileObj.file instanceof File) {
+                    if (fileObj.file instanceof File) {
                         formData.append(`project_update_${uIndex}_files`, fileObj.file);
                     }
                 });
-                if (detailsCopy.updates[uIndex]) {
-                    delete detailsCopy.updates[uIndex].files;
+                if (detailsCopy.updates && detailsCopy.updates[uIndex]) {
+                   delete detailsCopy.updates[uIndex].files;
                 }
             });
         }
@@ -291,26 +308,53 @@ const useAppStore = create<AppState>((set, get) => ({
         } catch (error: any) {
             console.error('Error in addReport:', error);
             toast.error(`فشل حفظ التقرير: ${error.message}`);
+            throw error;
         }
     },
     updateReport: async (report) => {
-        const formData = new FormData();
-        const reportCopy = JSON.parse(JSON.stringify(report));
-
-        if (report.evaluation) {
-            (report.evaluation.files || []).forEach((fileObj) => {
-                if (fileObj.file instanceof File) {
-                    formData.append('evaluation_files', fileObj.file);
-                }
-            });
-             if (reportCopy.evaluation) {
-                delete reportCopy.evaluation.files;
-            }
-        }
-        
-        formData.append('reportData', JSON.stringify(reportCopy));
-        
         try {
+            const formData = new FormData();
+            const reportJsonPayload = JSON.parse(JSON.stringify(report));
+
+            if (report.type === ReportType.Sales) {
+                report.details.customers?.forEach((customer: SalesCustomer, cIndex: number) => {
+                    customer.files?.forEach(fileObj => {
+                        if (fileObj.file instanceof File) {
+                            formData.append(`sales_customer_${cIndex}_files`, fileObj.file);
+                        }
+                    });
+                    if (reportJsonPayload.details.customers[cIndex]?.files) {
+                        reportJsonPayload.details.customers[cIndex].files = (report.details.customers[cIndex].files || []).filter(f => f.url);
+                    }
+                });
+            } else if (report.type === ReportType.Maintenance) {
+                // Maintenance reports don't support file edits, so just pass the JSON payload.
+            } else if (report.type === ReportType.Project) {
+                (report.details as ProjectDetails).updates?.forEach((update, uIndex) => {
+                    update.files?.forEach(fileObj => {
+                        if (fileObj.file instanceof File) {
+                            formData.append(`project_update_${uIndex}_files`, fileObj.file);
+                        }
+                    });
+                    if (reportJsonPayload.details.updates && reportJsonPayload.details.updates[uIndex]?.files) {
+                        reportJsonPayload.details.updates[uIndex].files = ((report.details as ProjectDetails).updates[uIndex].files || []).filter(f => f.url);
+                    }
+                });
+            }
+
+            if (report.evaluation) {
+                report.evaluation.files?.forEach(fileObj => {
+                    if (fileObj.file instanceof File) {
+                        formData.append('evaluation_files', fileObj.file);
+                    }
+                });
+                if (reportJsonPayload.evaluation?.files) {
+                    reportJsonPayload.evaluation.files = (report.evaluation.files || []).filter(f => f.url);
+                }
+            }
+
+            formData.append('reportData', JSON.stringify(reportJsonPayload));
+            
             const response = await fetch(`${API_BASE_URL}/reports/${report.id}`, {
                 method: 'PUT',
                 body: formData,
@@ -322,11 +366,11 @@ const useAppStore = create<AppState>((set, get) => ({
 
             set(state => ({
                 reports: state.reports.map(r => r.id === updatedReportFromServer.id ? updatedReportFromServer : r),
-                editingReportId: null,
             }));
         } catch (error: any) {
              console.error('Error in updateReport:', error);
             toast.error(`فشل تحديث التقرير: ${error.message}`);
+            throw error;
         }
     },
     deleteReport: async (reportId) => {
@@ -334,35 +378,201 @@ const useAppStore = create<AppState>((set, get) => ({
             const response = await fetch(`${API_BASE_URL}/reports/${reportId}`, {
                 method: 'DELETE',
             });
-            if (!response.ok) throw new Error(await response.text());
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'فشل الحذف من الخادم' }));
+                throw new Error(errorData.message);
+            }
             set(state => ({
                 reports: state.reports.filter(r => r.id !== reportId),
-                activeReportId: state.activeReportId === reportId ? null : state.activeReportId,
             }));
-        } catch (error) {
+            toast.success('تم حذف التقرير بنجاح!');
+        } catch (error: any) {
             console.error("Failed to delete report:", error);
-            toast.error('فشل حذف التقرير.');
+            toast.error(`فشل حذف التقرير: ${error.message}`);
+            throw error;
         }
-    },
-    viewReport: (reportId) => set({ activeReportId: reportId, activeView: 'reportDetail' }),
-    editReport: (report) => {
-        const viewMap: { [key in ReportType]?: string } = {
-            [ReportType.Sales]: 'sales',
-            [ReportType.Maintenance]: 'maintenance',
-            [ReportType.Project]: 'createProjectReport'
-        };
-        const view = viewMap[report.type];
-        if (view) set({ editingReportId: report.id, activeView: view });
     },
     printReport: (reportId) => {
         const report = get().reports.find(r => r.id === reportId);
         if (report) set({ reportForPrinting: report });
     },
     clearReportForPrinting: () => set({ reportForPrinting: null }),
+    acceptProjectAssignment: async (projectId) => {
+        const { reports, updateReport } = get();
+        const project = reports.find(r => r.id === projectId);
+        if (!project || project.type !== ReportType.Project || project.projectWorkflowStatus !== ProjectWorkflowStatus.PendingTeamAcceptance) {
+            toast.error('لا يمكن قبول المشروع في حالته الحالية.');
+            return;
+        }
+        const updatedProject: Report = {
+            ...project,
+            projectWorkflowStatus: ProjectWorkflowStatus.InProgress,
+        };
+        await updateReport(updatedProject);
+        toast.success('تم قبول المشروع وبدأ التنفيذ.');
+    },
+    confirmProjectStage: async (projectId, stageId, files, comment, employeeId) => {
+        const formData = new FormData();
+        formData.append('stageId', stageId);
+        formData.append('comment', comment);
+        formData.append('employeeId', employeeId);
+        files.forEach(file => {
+            formData.append('files', file);
+        });
+    
+        try {
+            const response = await fetch(`${API_BASE_URL}/reports/${projectId}/confirm-stage`, {
+                method: 'POST',
+                body: formData,
+            });
+            
+            const responseBodyText = await response.text();
+            if (!response.ok) {
+                let errorMessage = 'An unknown error occurred.';
+                try {
+                    const errorJson = JSON.parse(responseBodyText);
+                    errorMessage = errorJson.message;
+                } catch (e) {
+                    errorMessage = responseBodyText.substring(0, 200);
+                }
+                throw new Error(errorMessage);
+            }
+            
+            const updatedReport = JSON.parse(responseBodyText);
+            
+            set(state => ({
+                reports: state.reports.map(r => r.id === updatedReport.id ? updatedReport : r),
+            }));
+            toast.success('تم تحديث مرحلة المشروع بنجاح!');
+            
+        } catch (error: any) {
+            console.error('Error confirming project stage:', error);
+            toast.error(`فشل تحديث المرحلة: ${error.message}`);
+            throw error;
+        }
+    },
+    addProjectException: async (reportId, files, comment, employeeId) => {
+        const formData = new FormData();
+        formData.append('comment', comment);
+        formData.append('employeeId', employeeId);
+        files.forEach(file => {
+            formData.append('files', file);
+        });
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/reports/${reportId}/add-exception`, {
+                method: 'POST',
+                body: formData,
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'فشل إضافة الاستثناء' }));
+                throw new Error(errorData.message);
+            }
+            
+            const updatedReport = await response.json();
+            
+            set(state => ({
+                reports: state.reports.map(r => r.id === updatedReport.id ? updatedReport : r),
+            }));
+            toast.success('تمت إضافة الاستثناء بنجاح!');
+            
+        } catch (error: any) {
+            console.error('Error adding project exception:', error);
+            toast.error(`فشل إضافة الاستثناء: ${error.message}`);
+            throw error;
+        }
+    },
+    addAdminNote: async (reportId, content, author) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/reports/${reportId}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, authorId: author.id, authorName: author.name }),
+            });
+            if (!response.ok) throw new Error(await response.text());
+            const updatedReport = await response.json(); // Expect full report
+            set(state => ({
+                reports: state.reports.map(r => r.id === reportId ? updatedReport : r),
+            }));
+            toast.success('تمت إضافة الملاحظة.');
+        } catch (error: any) {
+            console.error('Failed to add admin note:', error);
+            toast.error('فشل إضافة الملاحظة.');
+        }
+    },
+    addAdminNoteReply: async (reportId, noteId, content, author) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/reports/${reportId}/notes/${noteId}/reply`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, authorId: author.id, authorName: author.name }),
+            });
+            if (!response.ok) throw new Error(await response.text());
+            const updatedReport = await response.json(); // Expect full report
+            set(state => ({
+                reports: state.reports.map(r => r.id === reportId ? updatedReport : r),
+            }));
+        } catch (error: any) {
+            console.error('Failed to add admin note reply:', error);
+            toast.error('فشل إضافة الرد.');
+        }
+    },
+    markNotesAsRead: async (reportId, userId) => {
+        // Optimistic update
+        const originalReports = get().reports;
+        const reportIndex = originalReports.findIndex(r => r.id === reportId);
+        if (reportIndex === -1) return;
+
+        const reportToUpdate = JSON.parse(JSON.stringify(originalReports[reportIndex]));
+        let hasChanged = false;
+
+        if (reportToUpdate.adminNotes) {
+            reportToUpdate.adminNotes.forEach((note: AdminNote) => {
+                if (!note.readBy.includes(userId)) {
+                    note.readBy.push(userId);
+                    hasChanged = true;
+                }
+                if (note.replies) {
+                    note.replies.forEach((reply: AdminNoteReply) => {
+                        if (!reply.readBy) {
+                            reply.readBy = [];
+                        }
+                        if (!reply.readBy.includes(userId)) {
+                            reply.readBy.push(userId);
+                            hasChanged = true;
+                        }
+                    });
+                }
+            });
+        }
+        
+        if (hasChanged) {
+            const updatedReports = [...originalReports];
+            updatedReports[reportIndex] = reportToUpdate;
+            set({ reports: updatedReports });
+        }
+        
+        // API call to persist the change
+        try {
+            const response = await fetch(`${API_BASE_URL}/reports/${reportId}/notes/read`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId }),
+            });
+             if (!response.ok) throw new Error('Server failed to mark notes as read.');
+        } catch (error) {
+            console.error('Failed to mark notes as read on server:', error);
+            set({ reports: originalReports }); 
+            toast.error('فشل مزامنة حالة قراءة الرسائل مع الخادم.');
+        }
+    },
     
     // Admin Data State
     users: [],
     branches: [],
+    technicalTeams: [],
+    currentUserLedTeam: null,
     addUser: async (userData) => {
         try {
             const response = await fetch(`${API_BASE_URL}/users`, {
@@ -376,6 +586,7 @@ const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error("Failed to add user:", error);
             toast.error('فشل إضافة الموظف.');
+            throw error;
         }
     },
     updateUser: async (userData) => {
@@ -393,6 +604,7 @@ const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error("Failed to update user:", error);
             toast.error('فشل تحديث الموظف.');
+            throw error;
         }
     },
     deleteUser: async (userId) => {
@@ -405,6 +617,7 @@ const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error("Failed to delete user:", error);
             toast.error('فشل حذف الموظف.');
+            throw error;
         }
     },
     addBranch: async (branchData) => {
@@ -420,6 +633,7 @@ const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error("Failed to add branch:", error);
             toast.error('فشل إضافة الفرع.');
+            throw error;
         }
     },
     updateBranch: async (branchData) => {
@@ -437,6 +651,7 @@ const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error("Failed to update branch:", error);
             toast.error('فشل تحديث الفرع.');
+            throw error;
         }
     },
     deleteBranch: async (branchId) => {
@@ -449,6 +664,54 @@ const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error("Failed to delete branch:", error);
             toast.error('فشل حذف الفرع.');
+            throw error;
+        }
+    },
+    addTechnicalTeam: async (teamData) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/teams`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(teamData),
+            });
+            if (!response.ok) throw new Error(await response.text());
+            const newTeam = await response.json();
+            set(state => ({ technicalTeams: [newTeam, ...state.technicalTeams] }));
+        } catch (error) {
+            console.error("Failed to add team:", error);
+            toast.error('فشل إضافة الفريق.');
+            throw error;
+        }
+    },
+    updateTechnicalTeam: async (teamData) => {
+        try {
+             const response = await fetch(`${API_BASE_URL}/teams/${teamData.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(teamData),
+            });
+            if (!response.ok) throw new Error(await response.text());
+            const updatedTeam = await response.json();
+            set(state => ({ 
+                technicalTeams: state.technicalTeams.map(t => t.id === updatedTeam.id ? updatedTeam : t) 
+            }));
+        } catch (error) {
+            console.error("Failed to update team:", error);
+            toast.error('فشل تحديث الفريق.');
+            throw error;
+        }
+    },
+    deleteTechnicalTeam: async (teamId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/teams/${teamId}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) throw new Error(await response.text());
+            set(state => ({ technicalTeams: state.technicalTeams.filter(t => t.id !== teamId) }));
+        } catch (error) {
+            console.error("Failed to delete team:", error);
+            toast.error('فشل حذف الفريق.');
+            throw error;
         }
     },
 
@@ -552,6 +815,34 @@ const useAppStore = create<AppState>((set, get) => ({
     },
     
     clearQuickChat: () => set({ quickChat: null }),
+
+    // Notification State
+    notifications: [],
+    unreadNotificationCount: 0,
+    markNotificationsAsRead: async (userId: string) => {
+        const originalNotifications = get().notifications;
+        const hasUnread = get().unreadNotificationCount > 0;
+
+        if (!hasUnread) return;
+
+        // Optimistic update
+        set(state => ({
+            notifications: state.notifications.map(n => ({ ...n, isRead: true })),
+            unreadNotificationCount: 0
+        }));
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/notifications/read/${userId}`, {
+                method: 'POST',
+            });
+            if (!response.ok) throw new Error('Failed to mark notifications as read on server.');
+        } catch (error) {
+            console.error(error);
+            // Revert on failure
+            set({ notifications: originalNotifications, unreadNotificationCount: originalNotifications.filter(n => !n.isRead).length });
+            toast.error('فشل تحديث حالة الإشعارات.');
+        }
+    },
 }));
 
 export default useAppStore;

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Eye, Printer, Star as StarIcon, ArrowRight, Trash2, Download } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Eye, Printer, Star as StarIcon, ArrowRight, Trash2, Download, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
 import { useAppContext } from '../../hooks/useAppContext';
 import { Input } from '../../components/ui/Input';
@@ -21,8 +22,8 @@ const statusVariant: { [key in ReportStatus]: 'success' | 'warning' | 'destructi
 const typeColors: { [key in ReportType]: string } = {
     [ReportType.Sales]: 'border-report-sales',
     [ReportType.Maintenance]: 'border-report-maintenance',
-    [ReportType.Project]: 'border-report-project',
     [ReportType.Inquiry]: 'border-report-inquiry',
+    [ReportType.Project]: 'border-report-project',
 };
 
 const ITEMS_PER_PAGE = 10;
@@ -31,15 +32,13 @@ const AllReportsScreen: React.FC = () => {
     const { t, user } = useAppContext();
     const { 
         reports, 
-        viewReport, 
-        updateReport, 
         printReport, 
         deleteReport, 
-        setActiveView, 
         openConfirmation,
         allReportsFilters,
         setAllReportsFilters,
     } = useAppStore();
+    const navigate = useNavigate();
     
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -92,7 +91,6 @@ const AllReportsScreen: React.FC = () => {
     const handleDelete = (reportId: string) => {
         openConfirmation('هل أنت متأكد من حذف هذا التقرير؟ لا يمكن التراجع عن هذا الإجراء.', () => {
             deleteReport(reportId);
-            toast.success('تم حذف التقرير بنجاح!');
         });
     };
 
@@ -111,7 +109,7 @@ const AllReportsScreen: React.FC = () => {
                     <h1 className="text-3xl font-bold">{t('allReports')}</h1>
                      <div className="flex items-center gap-2">
                         <Button onClick={handleExport} variant="secondary" icon={<Download size={16} />}>تصدير إلى Excel</Button>
-                        <Button onClick={() => setActiveView('dashboard')} variant="secondary">
+                        <Button onClick={() => navigate('/')} variant="secondary">
                             <ArrowRight size={16} className="me-2" />
                             رجوع
                         </Button>
@@ -177,20 +175,44 @@ const AllReportsScreen: React.FC = () => {
                                 </thead>
                                 <tbody>
                                     {paginatedReports.length > 0 ? (
-                                        paginatedReports.map((report) => (
+                                        paginatedReports.map((report) => {
+                                            const hasUnreadNotes = useMemo(() => {
+                                                if (!report.adminNotes || !user) return false;
+                                                for (const note of report.adminNotes) {
+                                                    if (!note.readBy?.includes(user.id)) return true;
+                                                    if (note.replies) {
+                                                        for (const reply of note.replies) {
+                                                            if (!reply.readBy?.includes(user.id)) return true;
+                                                        }
+                                                    }
+                                                }
+                                                return false;
+                                            }, [report.adminNotes, user]);
+
+                                            return (
                                             <tr key={report.id} className={`bg-white dark:bg-slate-800 border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600/50 border-r-4 ${typeColors[report.type]}`}>
-                                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{report.employeeName}</td>
+                                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">
+                                                     <div className="flex items-center gap-2">
+                                                        {report.employeeName}
+                                                        {hasUnreadNotes && (
+                                                            <span className="flex h-2 w-2 relative" title="توجد ملاحظات جديدة">
+                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td className="px-6 py-4">{report.branch}</td>
                                                 <td className="px-6 py-4 flex items-center gap-2">{report.type}</td>
                                                 <td className="px-6 py-4">{new Date(report.date).toLocaleDateString('ar-SA')}</td>
                                                 <td className="px-6 py-4"><Badge variant={statusVariant[report.status]}>{report.status}</Badge></td>
                                                 <td className="px-6 py-4 flex gap-1">
-                                                    <Button variant="ghost" size="sm" className="p-2 h-auto" title="عرض" onClick={() => viewReport(report.id)}><Eye size={16} /></Button>
+                                                    <Button variant="ghost" size="sm" className="p-2 h-auto" title="عرض" onClick={() => navigate(`/reports/${report.id}`)}><Eye size={16} /></Button>
                                                     <Button variant="ghost" size="sm" className="p-2 h-auto" title="طباعة" onClick={() => printReport(report.id)}><Printer size={16} /></Button>
                                                     <Button variant="ghost" size="sm" className="p-2 h-auto text-destructive hover:bg-destructive/10" title="حذف" onClick={() => handleDelete(report.id)}><Trash2 size={16} /></Button>
                                                 </td>
                                             </tr>
-                                        ))
+                                        )})
                                     ) : (
                                         <tr>
                                             <td colSpan={6} className="text-center py-8 text-slate-500">

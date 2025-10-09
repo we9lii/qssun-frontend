@@ -3,6 +3,7 @@ import type React from 'react';
 export enum Role {
     Admin = 'Admin',
     Employee = 'Employee',
+    TeamLead = 'TeamLead', // Role for team leaders
     HRManager = 'HR Manager',
     BranchManager = 'Branch Manager',
     Viewer = 'Viewer'
@@ -23,7 +24,6 @@ export interface User {
     joinDate: string;
     employeeType?: EmployeeType;
     hasImportExportPermission?: boolean;
-    // FIX: Add isFirstLogin property to support the onboarding screen flow.
     isFirstLogin?: boolean;
 }
 
@@ -38,8 +38,8 @@ export interface StatCardData {
 export enum ReportType {
     Sales = 'Sales',
     Maintenance = 'Maintenance',
-    Project = 'Project',
-    Inquiry = 'Inquiry'
+    Inquiry = 'Inquiry',
+    Project = 'Project'
 }
 
 export enum ReportStatus {
@@ -54,6 +54,7 @@ export interface SalesCustomerFile {
     url: string;
     fileName: string;
     file?: File; // For frontend use during upload
+    uploadedBy?: string;
 }
 export interface SalesCustomer {
     id: number;
@@ -75,6 +76,7 @@ export interface MaintenanceImage {
     url: string;
     fileName: string;
     file?: File; // For frontend use during upload
+    uploadedBy?: string;
 }
 
 export interface MaintenanceDetails {
@@ -89,29 +91,67 @@ export interface MaintenanceDetails {
     afterImages: MaintenanceImage[];
 }
 
+export interface InquiryDetails {
+    type: string;
+}
+
+// --- NEW Project Report Types ---
+export enum ProjectWorkflowStatus {
+    Draft = 'Draft',
+    PendingTeamAcceptance = 'PendingTeamAcceptance',
+    InProgress = 'InProgress',
+    ConcreteWorksDone = 'ConcreteWorksDone',
+    FinishingWorks = 'FinishingWorks',
+    TechnicallyCompleted = 'TechnicallyCompleted', // Team lead has finished their work
+    Finalized = 'Finalized', // Employee has finished all paperwork and closed the project
+}
+
 export interface ProjectUpdateFile {
+    id: string;
     url: string;
     fileName: string;
-    file?: File; // For frontend use during upload
+    file?: File;
+    uploadedBy?: string;
 }
+
 export interface ProjectUpdate {
     id: string;
     label: string;
     completed: boolean;
     files?: ProjectUpdateFile[];
     timestamp?: string;
+    comment?: string;
+}
+
+export interface ProjectException {
+    id: string;
+    comment: string;
+    files: ProjectUpdateFile[];
+    timestamp: string;
+    uploadedBy?: string;
 }
 
 export interface ProjectDetails {
     projectOwner: string;
+    projectOwnerPhone: string;
     location: string;
     size: string;
     startDate: string;
+    panelType: '640w' | '635w' | '630w' | '590w' | '585w' | '575w' | 'other';
+    customPanelType?: string;
+    panelCount: number;
+    baseType15x2Count: number;
+    baseType30x2Count: number;
+    totalBases: number;
     updates: ProjectUpdate[];
-}
-
-export interface InquiryDetails {
-    type: string;
+    // New fields for the updated workflow
+    completionProof?: {
+        files: ProjectUpdateFile[];
+        comment: string;
+        timestamp: string;
+    };
+    exceptions?: ProjectException[];
+    workflowDocs?: ProjectUpdateFile[];
 }
 // --- End Report Detail Structures ---
 
@@ -121,12 +161,34 @@ export interface ReportEvaluationFile {
     url: string;
     fileName: string;
     file?: File; // For frontend use during upload
+    uploadedBy?: string;
 }
 export interface ReportEvaluation {
     rating: number;
     comment: string;
     files: ReportEvaluationFile[];
 }
+
+// --- NEW Admin Notes System ---
+export interface AdminNoteReply {
+  id: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  timestamp: string;
+  readBy: string[];
+}
+
+export interface AdminNote {
+  id: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  timestamp: string;
+  replies: AdminNoteReply[];
+  readBy: string[]; // Array of user IDs who have read the note
+}
+
 
 export interface Report {
     id: string;
@@ -137,12 +199,17 @@ export interface Report {
     type: ReportType;
     date: string;
     status: ReportStatus;
-    details: SalesDetails | MaintenanceDetails | ProjectDetails | InquiryDetails | any;
+    details: SalesDetails | MaintenanceDetails | InquiryDetails | ProjectDetails | any;
     evaluation?: ReportEvaluation;
     modifications?: {
         modifiedBy: string;
         timestamp: string;
     }[];
+    // --- NEW Project Report Properties ---
+    assignedTeamId?: string;
+    projectWorkflowStatus?: ProjectWorkflowStatus;
+    // --- NEW Admin Notes Property ---
+    adminNotes?: AdminNote[];
 }
 
 export interface Branch {
@@ -153,6 +220,17 @@ export interface Branch {
     manager: string;
     creationDate: string;
 }
+
+// --- NEW Technical Team ---
+export interface TechnicalTeam {
+    id: string;
+    name: string;
+    leaderId: string;
+    leaderName: string;
+    members: string[]; // Array of manually entered names
+    creationDate: string;
+}
+
 
 export type DocumentType = 'Price Quote' | 'Purchase Order' | 'Compliance Certificate' | 'Shipping Certificate' | 'Invoice' | 'Customs Document' | 'Other' | 'Bill of Lading' | 'Commercial Invoice' | 'Packing List' | 'Certificate of Origin';
 
@@ -172,6 +250,7 @@ export interface WorkflowDocument {
     type: DocumentType;
     uploadDate: string;
     file?: File; // For frontend use during upload
+    uploadedBy?: string;
 }
 
 export interface StageHistoryItem {
@@ -204,6 +283,11 @@ export interface WorkflowRequest {
     stageHistory: StageHistoryItem[];
     // Add employeeId to be accessible in the store
     employeeId?: string; 
+    // NEW FIELDS FOR IMPORT/EXPORT APPROVAL STAGE
+    containerCount20ft?: number;
+    containerCount40ft?: number;
+    expectedDepartureDate?: string;
+    departurePort?: string;
 }
 
 // --- Audit Log Types ---
@@ -228,7 +312,17 @@ export interface AuditLog {
     description: string;
 }
 
-// --- Notification Types ---
+// --- Bell Notification Types ---
+export interface BellNotification {
+    id: string;
+    message: string;
+    link: string;
+    isRead: boolean;
+    createdAt: string;
+}
+
+// FIX: Add missing Notification and NotificationType for the admin notifications screen.
+// --- Admin Notification Types ---
 export type NotificationType = 'all' | 'user' | 'branch';
 
 export interface Notification {

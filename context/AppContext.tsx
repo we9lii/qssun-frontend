@@ -1,4 +1,4 @@
-import React, { createContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import { User } from '../types';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../config'; // Import from the central config file
@@ -55,9 +55,11 @@ const translations: { [key in Language]: { [key:string]: string } } = {
     allReports: "جميع التقارير",
     serviceEvaluation: "تقييم الخدمة",
     manageBranches: "إدارة الفروع",
+    manageTeams: "إدارة الفرق الفنية",
+    teamProjects: "مشاريع فريقي",
     manageNotifications: "إدارة الإشعارات",
     managePermissions: "الأدوار والصلاحيات",
-    componentsShowcase: "مكونات متخصصة",
+    adminCenter: "المركز الإداري",
     techSupport: "الدعم الفني",
     // New Workflow Translations
     createNewRequest: "إنشاء طلب جديد",
@@ -109,9 +111,11 @@ const translations: { [key in Language]: { [key:string]: string } } = {
     allReports: "All Reports",
     serviceEvaluation: "Service Evaluation",
     manageBranches: "Manage Branches",
+    manageTeams: "Manage Teams",
+    teamProjects: "My Team's Projects",
     manageNotifications: "Manage Notifications",
     managePermissions: "Roles & Permissions",
-    componentsShowcase: "Components Showcase",
+    adminCenter: "Admin Center",
     techSupport: "Technical Support",
     // New Workflow Translations
     createNewRequest: "Create New Request",
@@ -133,12 +137,28 @@ const translations: { [key in Language]: { [key:string]: string } } = {
   },
 };
 
+const USER_STORAGE_KEY = 'qssunUser';
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>('dark');
   const [lang, setLang] = useState<Language>('ar');
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // Simplified loading state
+  const [isLoading, setIsLoading] = useState(true); // Represents initial auth check
+
+  useEffect(() => {
+    // On app start, try to load user from localStorage
+    try {
+        const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
+    } catch (error) {
+        console.error("Failed to parse user from localStorage", error);
+        localStorage.removeItem(USER_STORAGE_KEY);
+    } finally {
+        setIsLoading(false);
+    }
+  }, []);
 
   const toggleTheme = () => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
@@ -153,7 +173,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [lang]);
 
   const login = async (employeeId: string, password: string) => {
-    setIsLoading(true);
+    // This isLoading is for the login action, not the initial auth check
     try {
       const response = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
@@ -166,7 +186,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const data = await response.json();
 
       if (!response.ok) {
-        // Handle server-side errors (e.g., wrong password, user not found)
         const errorMessage = data.message === 'Employee not found.' 
             ? t('employeeNotFound') 
             : data.message === 'Incorrect password.'
@@ -174,26 +193,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             : 'حدث خطأ غير متوقع.';
         toast.error(errorMessage);
       } else {
-        // On successful login
         const loggedInUser: User = data;
         toast.success(`مرحباً بك مجدداً، ${loggedInUser.name}`);
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(loggedInUser));
         setUser(loggedInUser);
       }
     } catch (error) {
-      // Handle network errors (e.g., backend server is down)
       console.error('Login fetch error:', error);
       toast.error('لا يمكن الاتصال بالخادم. الرجاء المحاولة لاحقاً.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const logout = () => {
+    localStorage.removeItem(USER_STORAGE_KEY);
     setUser(null);
   };
 
   const updateUser = (updatedUserData: Partial<User>) => {
-      setUser(prevUser => (prevUser ? { ...prevUser, ...updatedUserData } : null));
+      setUser(prevUser => {
+          if (prevUser) {
+              const newUser = { ...prevUser, ...updatedUserData };
+              localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser));
+              return newUser;
+          }
+          return null;
+      });
   };
 
   const changePassword = async (userId: string, currentPassword: string, newPassword: string): Promise<boolean> => {

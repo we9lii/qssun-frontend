@@ -1,72 +1,12 @@
-import { User, Role, Report, WorkflowRequest, Branch, AuditLog, Notification, PermissionAssignment, WorkflowStage } from '../types';
+import { User, Role, Report, WorkflowRequest, Branch, AuditLog, Notification, PermissionAssignment, WorkflowStage, DocumentType } from '../types';
 
-export const mockBranches: Branch[] = [
-    { id: '1', name: 'القصيم', location: 'القصيم', phone: '0163246060', manager: 'زيد المهنا', creationDate: '2025-09-25T01:30:03Z' }
-];
-
-export const mockUsers: User[] = [
-    {
-        id: '1',
-        employeeId: '1001',
-        name: 'فيصل بن محمد النتيفي',
-        email: 'it.Faisal@qssun.com',
-        phone: '0560080070',
-        role: Role.Admin,
-        branch: 'القصيم',
-        department: 'الإدارة',
-        position: 'مدير النظام',
-        joinDate: '2025-09-25T01:30:03Z',
-        employeeType: 'Admin',
-        hasImportExportPermission: true,
-    },
-    {
-        id: '2',
-        employeeId: '1002',
-        name: 'محمد زيد المهنا',
-        email: 'admin.mohammed@qssun.com',
-        phone: '0530784084',
-        role: Role.Admin,
-        branch: 'القصيم',
-        department: 'الإدارة',
-        position: 'مدير',
-        joinDate: '2025-09-25T01:30:03Z',
-        employeeType: 'Admin',
-        hasImportExportPermission: true,
-    },
-    {
-        id: '3',
-        employeeId: '1003',
-        name: 'محمد زيد',
-        email: 'employee.mohammed@qssun.com',
-        phone: '0530784084',
-        role: Role.Employee,
-        branch: 'القصيم',
-        department: 'الفني',
-        position: 'موظف',
-        joinDate: '2025-09-25T01:30:03Z',
-        employeeType: 'Technician',
-        hasImportExportPermission: false,
-    },
-    {
-        id: '4',
-        employeeId: '1',
-        name: 'مدير النظام',
-        email: 'admin@qssun.solar',
-        phone: 'N/A',
-        role: Role.Admin,
-        branch: 'القصيم',
-        department: 'الإدارة',
-        position: 'مدير النظام',
-        joinDate: '2025-09-25T03:36:14Z',
-        employeeType: 'Admin',
-        hasImportExportPermission: true,
-    }
-];
-
+// These are now fetched from the backend. The arrays are kept to prevent import errors.
+export const mockBranches: Branch[] = [];
+export const mockUsers: User[] = [];
 export const mockReports: Report[] = [];
-
 export const mockRequests: WorkflowRequest[] = [];
 
+// This data is still used locally for now.
 export const mockAuditLogs: AuditLog[] = [];
 
 export const mockNotifications: Notification[] = [
@@ -111,10 +51,10 @@ export const mockPermissions: PermissionAssignment[] = [
 
 // --- New Advanced Workflow Mock Data ---
 
-// FIX: Explicitly type `WORKFLOW_STAGES` as `WorkflowStage[]` to ensure `requiredDocuments` is correctly typed as `DocumentType[]` instead of `string[]`.
+// This is a system configuration and is considered "real" data for defining workflow logic.
 export const WORKFLOW_STAGES: WorkflowStage[] = [
-    { id: 1, name: 'عرض السعر والموافقة', responsible: 'موظف المبيعات', requiredDocuments: ['Price Quote'] },
-    { id: 2, name: 'أمر الشراء', responsible: 'قسم المشتريات', requiredDocuments: ['Purchase Order'] },
+    { id: 1, name: 'أمر الشراء', responsible: 'قسم المشتريات', requiredDocuments: ['Purchase Order'] },
+    { id: 2, name: 'الموافقة', responsible: 'موظف المبيعات', requiredDocuments: ['Price Quote'] },
     { id: 3, name: 'الشحن', responsible: 'قسم الشحن', requiredDocuments: ['Bill of Lading', 'Invoice'] },
     { id: 4, name: 'التخليص الجمركي', responsible: 'مخلص جمركي', requiredDocuments: ['Shipping Certificate', 'Commercial Invoice', 'Packing List', 'Certificate of Origin'] },
     { id: 5, name: 'الاستلام والفحص', responsible: 'مدير المستودع', requiredDocuments: ['Compliance Certificate'] },

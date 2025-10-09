@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 
 const ProfileScreen: React.FC = () => {
     const { t, user, updateUser: updateContextUser, changePassword } = useAppContext();
-    const { setActiveView, updateUser: updateStoreUser } = useAppStore();
+    const { updateUser: updateStoreUser } = useAppStore();
     const [isEditing, setIsEditing] = useState(false);
     
     // State for password change form
@@ -97,7 +97,7 @@ const ProfileScreen: React.FC = () => {
                 icon={UserIcon} 
                 title={t('profile')} 
                 colorClass="bg-nav-profile"
-                onBack={() => setActiveView('dashboard')}
+                onBack="/"
             />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1 space-y-6">
