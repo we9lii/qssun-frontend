@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Qssun Reports System</string>
-    <string name="title_activity_main">Qssun Reports System</string>
+    <string name="app_name">QRS</string>
+    <string name="title_activity_main">QRS</string>
     <string name="package_name">com.qssun.reports</string>
     <string name="custom_url_scheme">com.qssun.reports</string>
 </resources>

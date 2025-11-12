@@ -1,115 +1,133 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FileText, Wrench, Briefcase, BarChart2, Download, User, ChevronLeft, Users2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAppContext } from '../../hooks/useAppContext';
+import { Role, ReportType, ProjectWorkflowStatus, ReportType as RT, Report, ProjectDetails } from '../../types';
 import { Card, CardContent } from '../../components/ui/Card';
+import { Briefcase, BarChart2, User as UserIcon, FileText, Wrench, Download, Users2, Package } from 'lucide-react';
 import useAppStore from '../../store/useAppStore';
 
+// Reusable service card with yellow gradient header stripe and larger size
+const ServiceCard: React.FC<{ to: string; title: string; icon: React.ElementType; iconColorClass?: string }>
+  = ({ to, title, icon: Icon, iconColorClass }) => (
+    <Link to={to} className="block group focus:outline-none" aria-label={title}>
+      <Card
+        accentClass="bg-gradient-primary"
+        className="cursor-pointer hover:shadow-xl transition-transform duration-200 group-active:scale-[0.98] group-focus-within:ring-2 group-focus-within:ring-primary/30 group-focus-within:ring-offset-2 group-focus-within:ring-offset-white dark:group-focus-within:ring-offset-slate-800"
+      >
+        <CardContent className="p-6 md:p-7 flex items-center gap-4 min-h-28 md:min-h-32 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+          <div className="p-3.5 md:p-4 rounded-lg bg-slate-100 dark:bg-slate-800/60">
+            <Icon size={24} className={iconColorClass || 'text-slate-700 dark:text-slate-200'} />
+          </div>
+          <span className="font-semibold text-slate-900 dark:text-slate-100 text-base md:text-lg">{title}</span>
+        </CardContent>
+      </Card>
+    </Link>
+);
+
 const EmployeeDashboardScreen: React.FC = () => {
-    const { t, user } = useAppContext();
-    const navigate = useNavigate();
-    const { currentUserLedTeam } = useAppStore();
+  const { t, user } = useAppContext();
+  const { reports, currentUserLedTeam } = useAppStore();
+  if (!user) return null;
 
-    if (!user) return null;
+  const isDeveloper = String(user.role).toLowerCase() === 'developer';
+  const isTeamLeadLike = user.role === Role.TeamLead || isDeveloper;
+  const isGeneralEmployee = user.role !== Role.Admin && !isTeamLeadLike;
+  const allowed = user.allowedReportTypes || [];
+  const hasImportExport = !!user.hasImportExportPermission;
+  const hasLedTeam = !!currentUserLedTeam;
 
-    const services = [
-        { title: t('salesReports'), icon: FileText, path: '/sales', color: 'report-sales', shadow: 'shadow-sales' },
-        { title: t('maintenanceReports'), icon: Wrench, path: '/maintenance', color: 'report-maintenance', shadow: 'shadow-maintenance' },
-        { title: t('projectReports'), icon: Briefcase, path: '/projects', color: 'report-project', shadow: 'shadow-project' },
-        { title: t('reportsLog'), icon: BarChart2, path: '/log', color: 'nav-log', shadow: 'shadow-log' },
-        { title: t('importExport'), icon: Download, path: '/workflow', color: 'nav-workflow', shadow: 'shadow-workflow' },
-        { title: t('profile'), icon: User, path: '/profile', color: 'nav-profile', shadow: 'shadow-profile' },
-    ];
+  type CardDef = { key: string; to: string; title: string; icon: React.ElementType; show: boolean; iconColorClass?: string };
+  const cards: CardDef[] = [];
 
-    const availableServices = services.filter(service => {
-        if (service.path === '/workflow') {
-            return user.hasImportExportPermission;
-        }
-        return true;
-    });
-    
-    const getWelcomeMessage = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return 'صباح الخير';
-        if (hour < 18) return 'مساء الخير';
-        return 'مساء الخير';
-    };
-
-    return (
-        <div className="relative space-y-8">
-            <div className="aurora-bg"></div>
-            <div className="relative z-10">
-                {/* Welcome Header */}
-                <div>
-                    <h1 className="text-3xl font-bold">{getWelcomeMessage()}، {user.name.split(' ')[0]}!</h1>
-                    <p className="text-slate-500 dark:text-slate-400">هنا نظرة سريعة على نشاطك اليوم.</p>
-                </div>
-                
-                {/* Team Lead Special Card */}
-                {currentUserLedTeam && (
-                     <Card 
-                        onClick={() => navigate('/team-projects')}
-                        className="mt-6 bg-gradient-to-l from-violet-500 to-fuchsia-500 text-white cursor-pointer group transform hover:scale-105 transition-transform duration-300"
-                    >
-                        <CardContent className="p-4 flex items-center justify-between">
-                           <div className="flex items-center gap-3">
-                                <div className="p-2 bg-white/20 rounded-lg">
-                                    <Users2 size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-lg">لوحة تحكم قائد الفريق</h3>
-                                    <p className="text-sm opacity-90">عرض وإدارة المشاريع المسندة لفريقك.</p>
-                                </div>
-                           </div>
-                           <ChevronLeft size={24} className="transform group-hover:translate-x-[-5px] transition-transform" />
-                        </CardContent>
-                    </Card>
-                )}
-
-
-                {/* Services */}
-                <div className="mt-8">
-                    {/* Mobile & Tablet View: List Layout */}
-                    <div className="space-y-3 lg:hidden">
-                        {availableServices.map((service, index) => (
-                            <button 
-                                key={service.path}
-                                onClick={() => navigate(service.path)}
-                                className="relative w-full text-right bg-white dark:bg-slate-700 rounded-lg shadow-md overflow-hidden transform hover:scale-[1.02] transition-transform duration-200 group animate-fade-in-up"
-                                style={{ animationDelay: `${index * 100}ms`}}
-                            >
-                                <div className="flex items-center w-full p-4 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-600/20 transition-colors duration-200">
-                                    <div className={`p-3 rounded-full text-white bg-${service.color}`}>
-                                        <service.icon size={22} />
-                                    </div>
-                                    <h3 className="flex-1 mx-4 text-base font-semibold">{service.title}</h3>
-                                    <ChevronLeft size={24} className="text-slate-400" />
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                    
-                    {/* Desktop View: Rectangular Cards */}
-                    <div className="hidden lg:grid grid-cols-2 md:grid-cols-3 gap-6">
-                        {availableServices.map((service) => (
-                            <Card
-                                key={service.path}
-                                onClick={() => navigate(service.path)}
-                                className={`group cursor-pointer transform hover:-translate-y-2 transition-all duration-300 hover:shadow-lg dark:hover:shadow-black/20 shine-effect`}
-                            >
-                                <CardContent className="flex flex-col items-center justify-center text-center p-6">
-                                    <div className={`p-4 rounded-full bg-slate-100 dark:bg-slate-800/50 mb-4 transition-all duration-300 group-hover:scale-110 text-${service.color}`}>
-                                        <service.icon size={32} className="transition-transform duration-300 group-hover:rotate-6" />
-                                    </div>
-                                    <h3 className="text-md font-semibold">{service.title}</h3>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </div>
+  if (isTeamLeadLike) {
+    // TeamLead/Developer: single elegant card to manage team projects + profile
+    cards.push(
+      { key: 'team-leader-dashboard', to: '/team-projects', title: t('teamLeadDashboard'), icon: Users2, show: true, iconColorClass: 'text-report-project' },
+      { key: 'profile', to: '/profile', title: t('profile'), icon: UserIcon, show: true }
     );
+  } else if (isGeneralEmployee) {
+    // Show allowed report types regardless of import/export permission
+    const showSales = allowed.includes(ReportType.Sales);
+    const showMaintenance = allowed.includes(ReportType.Maintenance);
+    const showProject = allowed.includes(ReportType.Project);
+
+    // If the user leads a team (even if not a formal TeamLead role), show quick access
+    if (hasLedTeam) {
+      cards.push(
+        { key: 'team-projects', to: '/team-projects', title: t('teamProjects'), icon: Users2, show: true, iconColorClass: 'text-report-project' }
+      );
+    }
+
+    cards.push(
+      { key: 'sales', to: '/sales', title: t('salesReports'), icon: FileText, show: showSales, iconColorClass: 'text-report-sales' },
+      { key: 'maintenance', to: '/maintenance', title: t('maintenanceReports'), icon: Wrench, show: showMaintenance, iconColorClass: 'text-report-maintenance' },
+      { key: 'project', to: '/project-dashboard', title: t('projectReports'), icon: Briefcase, show: showProject, iconColorClass: 'text-report-project' },
+      { key: 'log', to: '/log', title: t('reportsLog'), icon: BarChart2, show: true, iconColorClass: 'text-nav-log' },
+      { key: 'workflow', to: '/workflow', title: t('importExport'), icon: Download, show: hasImportExport, iconColorClass: 'text-nav-workflow' },
+      { key: 'packages', to: '/packages', title: 'إدارة البكجات', icon: Package, show: true, iconColorClass: 'text-primary' },
+      { key: 'profile', to: '/profile', title: t('profile'), icon: UserIcon, show: true }
+    );
+  }
+
+  // Compute Team Projects KPIs for quick navigation
+  const teamProjects = currentUserLedTeam
+    ? reports.filter(r => r.type === ReportType.Project && r.assignedTeamId === currentUserLedTeam.id)
+    : [];
+
+  const total = teamProjects.length;
+  const pendingAcceptance = teamProjects.filter(p => p.projectWorkflowStatus === ProjectWorkflowStatus.PendingTeamAcceptance).length;
+  const inProgress = teamProjects.filter(p =>
+    p.projectWorkflowStatus === ProjectWorkflowStatus.InProgress ||
+    p.projectWorkflowStatus === ProjectWorkflowStatus.FinishingWorks ||
+    p.projectWorkflowStatus === ProjectWorkflowStatus.ConcreteWorksDone
+  ).length;
+  const completed = teamProjects.filter(p =>
+    p.projectWorkflowStatus === ProjectWorkflowStatus.TechnicallyCompleted ||
+    p.projectWorkflowStatus === ProjectWorkflowStatus.Finalized
+  ).length;
+  const withExceptions = teamProjects.filter(p => {
+    const details = p.details as ProjectDetails;
+    return Array.isArray(details?.exceptions) && details.exceptions.length > 0;
+  }).length;
+
+  return (
+    <div className="space-y-6 md:space-y-8">
+      <div className="px-6 md:px-7 space-y-1.5">
+        <h1 className="text-2xl md:text-3xl font-bold">لوحة تحكم الموظف</h1>
+        <p className="text-slate-700 dark:text-slate-200 text-sm md:text-base">طاب يومك {user.name}</p>
+        <p className="text-slate-500 dark:text-slate-400 text-xs md:text-sm">إليك قائمة إجراءاتك</p>
+      </div>
+      <div className="p-6 md:p-7 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+        {cards.filter(c => c.show).map(card => (
+          <ServiceCard key={card.key} to={card.to} title={card.title} icon={card.icon} iconColorClass={card.iconColorClass} />
+        ))}
+      </div>
+
+      {hasLedTeam && (
+        <div className="px-6 md:px-7 space-y-3">
+          <h3 className="font-semibold text-slate-900 dark:text-slate-100">{t('teamProjects')}</h3>
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
+            <Link to="/project-dashboard" className="block">
+              <Card className="cursor-pointer hover:shadow-md">
+                <CardContent className="pt-6">
+                  <div className="text-sm text-slate-500">إجمالي المشاريع</div>
+                  <div className="text-2xl font-bold">{total}</div>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link to="/team-projects?status=pending-acceptance" className="block">
+              <Card className="cursor-pointer hover:shadow-md">
+                <CardContent className="pt-6">
+                  <div className="text-sm text-slate-500">{t('projectStatusPendingTeamAcceptance')}</div>
+                  <div className="text-2xl font-bold">{pendingAcceptance}</div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default EmployeeDashboardScreen;

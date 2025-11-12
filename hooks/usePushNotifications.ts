@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import {
   PushNotifications,
@@ -11,6 +10,7 @@ import { API_BASE_URL } from '../config';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import React from 'react';
+import { NotificationToast } from '../components/common/NotificationToast';
 
 export const usePushNotifications = (userId: string | undefined) => {
   const navigate = useNavigate();
@@ -60,29 +60,13 @@ export const usePushNotifications = (userId: string | undefined) => {
 
     const pushNotificationReceivedListener = PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
       console.log('Push received:', notification);
-      // FIX: Replaced JSX with React.createElement calls to be compatible with a .ts file extension.
-      // The original code used JSX, which is not supported in .ts files and caused numerous parsing errors.
       toast.custom(
-        (t) => React.createElement('div', {
-          className: `${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-slate-700 shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 cursor-pointer`,
-          onClick: () => {
-            toast.dismiss(t.id);
-            if (notification.data.link) navigate(notification.data.link);
-          }
-        },
-          React.createElement('div', { className: 'flex-1 w-0 p-4' },
-            React.createElement('div', { className: 'flex items-start' },
-              React.createElement('div', { className: 'ml-3 flex-1' },
-                React.createElement('p', { className: 'text-sm font-medium text-slate-900 dark:text-slate-100' },
-                  notification.title
-                ),
-                React.createElement('p', { className: 'mt-1 text-sm text-slate-500 dark:text-slate-300' },
-                  notification.body
-                )
-              )
-            )
-          )
-        ),
+        (t) => React.createElement(NotificationToast, {
+          t: t,
+          title: notification.title,
+          body: notification.body,
+          link: notification.data.link,
+        }),
         {
           duration: 6000,
         }
@@ -99,10 +83,10 @@ export const usePushNotifications = (userId: string | undefined) => {
 
     // Cleanup on unmount
     return () => {
-        registrationListener.remove();
-        registrationErrorListener.remove();
-        pushNotificationReceivedListener.remove();
-        pushNotificationActionPerformedListener.remove();
+        registrationListener.then(listener => listener.remove());
+        registrationErrorListener.then(listener => listener.remove());
+        pushNotificationReceivedListener.then(listener => listener.remove());
+        pushNotificationActionPerformedListener.then(listener => listener.remove());
     };
   }, [userId, navigate]);
 

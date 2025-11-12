@@ -79,7 +79,8 @@ const ReportsLogScreen: React.FC<ReportsLogScreenProps> = () => {
 
     const handleDelete = (reportId: string) => {
         openConfirmation('هل أنت متأكد من حذف هذا التقرير؟ لا يمكن التراجع عن هذا الإجراء.', () => {
-            deleteReport(reportId);
+            if (!user) return;
+            deleteReport(reportId, user);
         });
     };
 

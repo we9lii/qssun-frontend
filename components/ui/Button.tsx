@@ -8,10 +8,11 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   icon?: React.ReactNode;
+  leftIcon?: React.ReactNode;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', isLoading = false, icon, children, ...props }, ref) => {
+  ({ className = '', variant = 'primary', size = 'md', isLoading = false, icon, leftIcon, children, ...props }, ref) => {
     const baseClasses = 'relative overflow-hidden inline-flex items-center justify-center rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300';
 
     const variantClasses = {
@@ -19,13 +20,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       secondary: 'bg-transparent border border-slate-300 dark:border-slate-500 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600 focus:ring-primary',
       destructive: 'bg-destructive text-white hover:bg-destructive/90 focus:ring-destructive',
       ghost: 'hover:bg-slate-200 dark:hover:bg-slate-600 focus:ring-primary',
-    };
+    } as const;
 
     const sizeClasses = {
       sm: 'px-3 py-1.5 text-xs',
       md: 'px-4 py-2 text-sm',
       lg: 'px-6 py-3 text-base',
-    };
+    } as const;
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         const button = event.currentTarget;
@@ -50,12 +51,14 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             if (circle.parentElement) {
                 circle.remove();
             }
-        }, 600); // Match CSS animation duration
+        }, 600);
 
         if (props.onClick) {
             props.onClick(event);
         }
     };
+
+    const iconToRender = icon ?? leftIcon;
 
     return (
       <button
@@ -68,7 +71,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {isLoading ? (
           <Loader2 className="me-2 h-4 w-4 animate-spin" />
         ) : (
-          icon && <span className="me-2">{icon}</span>
+          iconToRender && <span className="me-2">{iconToRender}</span>
         )}
         {children}
       </button>

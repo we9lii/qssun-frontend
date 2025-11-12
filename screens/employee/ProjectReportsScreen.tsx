@@ -5,7 +5,7 @@ import { Check, Paperclip, Share2, File as FileIcon, Trash2, X, Download, Briefc
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { ProjectUpdate, Report, ReportStatus, ReportType, ProjectDetails, ProjectUpdateFile, ProjectWorkflowStatus, ProjectException } from '../../types';
+import { ProjectUpdate, Report, ReportStatus, ReportType, ProjectDetails, ProjectUpdateFile, ProjectWorkflowStatus, ProjectException, Role } from '../../types';
 import { Textarea } from '../../components/ui/Textarea';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { useAppContext } from '../../hooks/useAppContext';
@@ -25,9 +25,30 @@ const initialUpdates: ProjectUpdate[] = [
 
 const panelTypeOptions = ['640w', '635w', '630w', '590w', '585w', '575w'];
 
+const getStageLabelById = (id: string, t: (key: string) => string) => {
+  switch (id) {
+    case 'contract':
+      return t('projectStageContract');
+    case 'firstPayment':
+      return t('projectStageFirstPayment');
+    case 'notifyTeam':
+      return t('projectStageNotifyTeam');
+    case 'concreteWorks':
+      return t('projectStageConcreteWorks');
+    case 'secondPayment':
+      return t('projectStageSecondPayment');
+    case 'installationComplete':
+      return t('projectStageInstallationComplete');
+    case 'deliveryHandover':
+      return t('projectStageDeliveryHandover');
+    default:
+      return id;
+  }
+};
+
 const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ reportToEdit }) => {
-  const { user } = useAppContext();
-  const { addReport, updateReport, technicalTeams, addProjectException } = useAppStore();
+  const { t, user } = useAppContext();
+  const { addReport, updateReport, technicalTeams, addProjectException, reports, sendNotification, users } = useAppStore();
   const navigate = useNavigate();
   const [updates, setUpdates] = useState<ProjectUpdate[]>(JSON.parse(JSON.stringify(initialUpdates)));
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,6 +71,35 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
   const [isExceptionsModalOpen, setExceptionsModalOpen] = useState(false);
   
   const isEditMode = !!reportToEdit;
+
+  // Compute available teams (exclude teams engaged in active projects)
+  const activeTeamIds = React.useMemo(() => {
+    const activeStatuses: ProjectWorkflowStatus[] = [
+      ProjectWorkflowStatus.PendingTeamAcceptance,
+      ProjectWorkflowStatus.InProgress,
+      ProjectWorkflowStatus.ConcreteWorksDone,
+      ProjectWorkflowStatus.FinishingWorks,
+    ];
+    const ids = new Set<string>();
+    for (const r of reports) {
+      if (
+        r.type === ReportType.Project &&
+        r.assignedTeamId &&
+        r.projectWorkflowStatus &&
+        activeStatuses.includes(r.projectWorkflowStatus)
+      ) {
+        ids.add(r.assignedTeamId);
+      }
+    }
+    return ids;
+  }, [reports]);
+
+  const teamsForSelection = React.useMemo(() => {
+    return technicalTeams.filter(team => {
+      if (isEditMode && reportToEdit?.assignedTeamId === team.id) return true;
+      return !activeTeamIds.has(team.id);
+    });
+  }, [technicalTeams, activeTeamIds, isEditMode, reportToEdit]);
 
   useEffect(() => {
     // Auto-calculate total bases
@@ -74,9 +124,9 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
       setBaseType30x2Count(details.baseType30x2Count?.toString() || '0');
     } else {
       setStartDate(new Date().toISOString().split('T')[0]);
-      setAssignedTeamId(technicalTeams[0]?.id || '');
+      setAssignedTeamId(teamsForSelection[0]?.id || '');
     }
-  }, [reportToEdit, isEditMode, technicalTeams]);
+  }, [reportToEdit, isEditMode, teamsForSelection]);
   
   const handleToggleUpdate = (id: string) => {
     const canProceed = (updateId: string) => {
@@ -90,7 +140,7 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
 
     const isCompleting = !updates.find(u => u.id === id)?.completed;
     if (isCompleting && !canProceed(id)) {
-        toast.error('يجب إكمال المراحل السابقة أولاً.');
+        toast.error(t('mustCompletePreviousStagesFirst'));
         return;
     }
 
@@ -98,20 +148,14 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
       updates.map((u) => (u.id === id ? { ...u, completed: !u.completed, timestamp: u.completed ? undefined : new Date().toISOString() } : u))
     );
   };
-  
+
   const handleNotifyTeam = async () => {
-      const notifyUpdate = updates.find(u => u.id === 'notifyTeam');
-      if (notifyUpdate?.completed) {
-          toast.error('لا يمكن التراجع عن إشعار الفريق الفني.');
+      if (!user || !reportToEdit) {
+          toast.error(t('mustSaveProjectBeforeNotify'));
           return;
       }
 
-      if (!isEditMode || !reportToEdit || !user) {
-          toast.error("يجب حفظ المشروع أولاً قبل إشعار الفريق.");
-          return;
-      }
-
-      const isConfirmed = window.confirm('هل أنت متأكد من إشعار الفريق الفني؟ سيتم حفظ التغيير فوراً وإعلام قائد الفريق.');
+      const isConfirmed = window.confirm(t('confirmNotifyTeam'));
       if (!isConfirmed) return;
       
       const canProceedToNotify = () => {
@@ -123,7 +167,7 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
       };
 
       if (!canProceedToNotify()) {
-          toast.error('يجب إكمال المراحل السابقة أولاً (توقيع العقد والدفعة الأولى).');
+          toast.error(t('mustCompletePreviousStagesFirst'));
           return;
       }
 
@@ -147,10 +191,10 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
 
           await updateReport(updatedReport);
           setUpdates(newUpdates);
-          toast.success('تم إشعار الفريق الفني بنجاح!');
+          toast.success(t('teamNotifiedSuccessfully'));
       } catch (error) {
           console.error("Failed to notify team:", error);
-          toast.error('حدث خطأ أثناء محاولة إشعار الفريق.');
+          toast.error(t('errorNotifyingTeam'));
       } finally {
           setIsNotifying(false);
       }
@@ -241,7 +285,92 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
                     ]
                 };
                 await updateReport(updatedReport);
-                toast.success('تم تحديث تقرير المشروع بنجاح!');
+                toast.success(t('projectReportUpdatedSuccessfully'));
+                // Notify team leader when second payment is completed to start finishing works
+                try {
+                    const prevUpdates = ((reportToEdit.details as ProjectDetails)?.updates || []);
+                    const wasCompletedBefore = (id: string) => prevUpdates.find(u => u.id === id)?.completed;
+                    const nowCompleted = (id: string) => updates.find(u => u.id === id)?.completed;
+
+                    const secondPaymentCompleted = nowCompleted('secondPayment');
+                    const wasAwaitingSecondPayment = reportToEdit.projectWorkflowStatus === ProjectWorkflowStatus.ConcreteWorksDone;
+                    if (secondPaymentCompleted && wasAwaitingSecondPayment && updatedReport.assignedTeamId) {
+                        const assignedTeam = technicalTeams.find(t => t.id === updatedReport.assignedTeamId);
+                        const leaderId = assignedTeam?.leaderId;
+                        if (leaderId) {
+                            await sendNotification({
+                                title: 'استلام الدفعة الثانية',
+                                message: 'تم تأكيد استلام الدفعة الثانية. يرجى استكمال أعمال التشطيبات ورفع مستندات سير العمل.',
+                                targetUserId: leaderId,
+                                senderId: user.employeeId,
+                                link: `/reports/${updatedReport.id}`,
+                            });
+                        }
+                    }
+
+                    // Notify team leader when concrete works are marked completed by employee
+                    if (nowCompleted('concreteWorks') && !wasCompletedBefore('concreteWorks') && updatedReport.assignedTeamId) {
+                        const assignedTeam = technicalTeams.find(t => t.id === updatedReport.assignedTeamId);
+                        const leaderId = assignedTeam?.leaderId;
+                        if (leaderId) {
+                            await sendNotification({
+                                title: 'إنتهاء أعمال الخرسانة',
+                                message: 'تم تحديد انتهاء أعمال الخرسانة. يرجى متابعة الأعمال التالية.',
+                                targetUserId: leaderId,
+                                senderId: user.employeeId,
+                                link: `/reports/${updatedReport.id}`,
+                            });
+                        }
+                    }
+
+                    // Notify team leader when installation is completed by employee
+                    if (nowCompleted('installationComplete') && !wasCompletedBefore('installationComplete') && updatedReport.assignedTeamId) {
+                        const assignedTeam = technicalTeams.find(t => t.id === updatedReport.assignedTeamId);
+                        const leaderId = assignedTeam?.leaderId;
+                        if (leaderId) {
+                            await sendNotification({
+                                title: 'انتهاء أعمال التركيب',
+                                message: 'تم تحديد انتهاء أعمال التركيب. يرجى تجهيز محضر التسليم.',
+                                targetUserId: leaderId,
+                                senderId: user.employeeId,
+                                link: `/reports/${updatedReport.id}`,
+                            });
+                        }
+                    }
+
+                    // Notify team leader when initial delivery handover document is uploaded by employee
+                    const prevDHFilesLen = prevUpdates.find(u => u.id === 'deliveryHandover')?.files?.length || 0;
+                    const currentDHFilesLen = updates.find(u => u.id === 'deliveryHandover')?.files?.length || 0;
+                    if (currentDHFilesLen > prevDHFilesLen && currentDHFilesLen >= 1 && updatedReport.assignedTeamId) {
+                        const assignedTeam = technicalTeams.find(t => t.id === updatedReport.assignedTeamId);
+                        const leaderId = assignedTeam?.leaderId;
+                        if (leaderId) {
+                            await sendNotification({
+                                title: 'ارسال محضر تسليم الأعمال',
+                                message: 'تم رفع المحضر الأولي لتسليم الأعمال. يرجى رفع المحضر الموقّع.',
+                                targetUserId: leaderId,
+                                senderId: user.employeeId,
+                                link: `/reports/${updatedReport.id}`,
+                            });
+                        }
+                    }
+
+                    // Notify admins when project is finalized
+                    if (updatedReport.projectWorkflowStatus === ProjectWorkflowStatus.Finalized) {
+                        const adminUsers = (users || []).filter(u => u.role === Role.Admin || u.role === Role.SuperAdmin);
+                        for (const admin of adminUsers) {
+                            await sendNotification({
+                                title: 'إنهاء المشروع',
+                                message: `تم إنهاء المشروع وتسليم المحضر. رقم التقرير: ${updatedReport.id}`,
+                                targetUserId: admin.id,
+                                senderId: user.employeeId,
+                                link: `/admin/project-reports?reportId=${updatedReport.id}`,
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to send stage notifications:', e);
+                }
             } else {
                 const newReport: Omit<Report, 'id'> = {
                     employeeId: user.employeeId,
@@ -256,9 +385,9 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
                     projectWorkflowStatus: workflowStatus,
                 };
                 await addReport(newReport);
-                toast.success('تم حفظ تقرير المشروع بنجاح!');
+                toast.success(t('projectReportSavedSuccessfully'));
             }
-            navigate('/projects');
+            navigate('/project-dashboard');
         } finally {
             setIsSaving(false);
         }
@@ -276,17 +405,17 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
 
             return (
                 <div className={`flex flex-col p-4 rounded-lg transition-colors ${isCompleted ? 'bg-green-50 dark:bg-green-900/20' : 'bg-slate-100 dark:bg-slate-800/50'}`}>
-                    <h4 className="font-semibold mb-3">{update.label}</h4>
+                    <h4 className="font-semibold mb-3">{getStageLabelById(update.id, t)}</h4>
                     <div className="space-y-3">
                         {/* Step 1: Upload Initial Document */}
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 {initialDoc ? <CheckCircle size={18} className="text-success"/> : <div className="w-4 h-4 rounded-full border-2 border-slate-400"></div>}
-                                <span>رفع المحضر المبدئي</span>
+                                <span>{t('projectUploadInitialMinutes')}</span>
                             </div>
                             {!initialDoc && (
                                 <Button type="button" variant="secondary" size="sm" onClick={() => handleAttachClick(update.id)}>
-                                    <Paperclip size={14} className="me-1"/> إرفاق PDF
+                                    <Paperclip size={14} className="me-1"/> {t('attachPDF')}
                                 </Button>
                             )}
                         </div>
@@ -300,20 +429,20 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
                         {/* Step 2: Await Signed Document */}
                         <div className="flex items-center gap-2">
                              {signedDoc ? <CheckCircle size={18} className="text-success"/> : <div className="w-4 h-4 rounded-full border-2 border-slate-400"></div>}
-                            <span>استلام المحضر الموقّع</span>
+                            <span>{t('projectReceiveSignedMinutes')}</span>
                         </div>
                         {signedDoc ? (
                             <div className="ms-6 p-1.5 bg-slate-200 dark:bg-slate-700 rounded text-xs">
                                 {signedDoc.fileName}
                             </div>
                         ) : (
-                            <p className="ms-6 text-xs text-slate-500">بانتظار الرفع من الفريق الفني...</p>
+                            <p className="ms-6 text-xs text-slate-500">{t('awaitingTeamUpload')}</p>
                         )}
 
                         {/* Step 3: Finish Project */}
                         <div className="pt-3 border-t">
                             <Button type="submit" className="w-full" disabled={!signedDoc || update.completed} onClick={() => handleToggleUpdate(update.id)}>
-                                {update.completed ? 'تم تسليم المشروع للعميل' : 'إنهاء المشروع'}
+                                {update.completed ? t('projectDeliveredToClient') : t('projectFinishProject')}
                             </Button>
                         </div>
                     </div>
@@ -336,7 +465,7 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
                         {isCompleted && <Check size={16} />}
                         </button>
                         <div>
-                        <span className={`font-semibold ${isCompleted ? 'line-through text-slate-500' : ''}`}>{update.label}</span>
+                        <span className={`font-semibold ${isCompleted ? 'line-through text-slate-500' : ''}`}>{getStageLabelById(update.id, t)}</span>
                         {update.timestamp && <p className="text-xs text-slate-400">{new Date(update.timestamp).toLocaleString()}</p>}
                         </div>
                     </div>
@@ -361,7 +490,7 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
                         )}
                         {update.files && update.files.length > 0 && (
                             <div>
-                                <h5 className="text-xs font-semibold text-slate-500">الملفات المرفقة:</h5>
+                                <h5 className="text-xs font-semibold text-slate-500">{t('attachedFiles')}</h5>
                                 <div className="space-y-2 mt-1">
                                     {update.files.map((file) => (
                                         <div key={file.id} className="flex items-center justify-between bg-slate-200 dark:bg-slate-700 p-1.5 rounded text-xs gap-2">
@@ -393,31 +522,34 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
   const projectDetailsFromReport = reportToEdit?.details as ProjectDetails | undefined;
   const exceptions = projectDetailsFromReport?.exceptions || [];
 
+  // Selected team details for display
+  const selectedTeam = technicalTeams.find(t => t.id === assignedTeamId);
+
   return (
     <>
       <div className="space-y-6">
         <input type="file" multiple ref={fileInputRef} className="hidden" onChange={handleFileChange} />
         <ScreenHeader 
             icon={Briefcase} 
-            title={isEditMode ? "تعديل تقرير مشروع" : "تقرير مشروع جديد"}
+            title={isEditMode ? t('editProjectReport') : t('newProjectReport')}
             colorClass="bg-nav-project"
-            onBack={isEditMode ? '/log' : '/projects'}
+            onBack={isEditMode ? '/log' : '/project-dashboard'}
         />
         <Card>
             <CardContent className="pt-6">
             <form className="space-y-8" onSubmit={handleSubmit}>
                 <div>
-                    <h3 className="text-lg font-semibold mb-4 border-b pb-2">المعلومات الأساسية</h3>
+                    <h3 className="text-lg font-semibold mb-4 border-b pb-2">{t('basicInformation')}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div><label className="block text-sm font-medium mb-1">مالك المشروع</label><Input value={projectOwner} onChange={e => setProjectOwner(e.target.value)} required /></div>
-                        <div><label className="block text-sm font-medium mb-1">رقم جوال المالك</label><Input type="tel" dir="ltr" value={projectOwnerPhone} onChange={e => setProjectOwnerPhone(e.target.value)} required /></div>
-                        <div><label className="block text-sm font-medium mb-1">موقع المشروع</label><Input value={projectLocation} onChange={e => setProjectLocation(e.target.value)} required /></div>
-                        <div><label className="block text-sm font-medium mb-1">حجم المشروع</label><Input value={projectSize} onChange={e => setProjectSize(e.target.value)} required /></div>
-                        <div className="lg:col-span-2"><label className="block text-sm font-medium mb-1">تاريخ البدء</label><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required /></div>
+                        <div><label className="block text-sm font-medium mb-1">{t('projectOwner')}</label><Input value={projectOwner} onChange={e => setProjectOwner(e.target.value)} required /></div>
+                        <div><label className="block text-sm font-medium mb-1">{t('projectOwnerPhone')}</label><Input type="tel" dir="ltr" value={projectOwnerPhone} onChange={e => setProjectOwnerPhone(e.target.value)} required /></div>
+                        <div><label className="block text-sm font-medium mb-1">{t('projectLocation')}</label><Input value={projectLocation} onChange={e => setProjectLocation(e.target.value)} required /></div>
+                        <div><label className="block text-sm font-medium mb-1">{t('projectSize')}</label><Input value={projectSize} onChange={e => setProjectSize(e.target.value)} required /></div>
+                        <div className="lg:col-span-2"><label className="block text-sm font-medium mb-1">{t('startDate')}</label><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required /></div>
                         <div className="md:col-span-2 lg:col-span-3">
                         <label className="block text-sm font-medium mb-1">
                             <Users2 size={14} className="inline-block me-1" />
-                            إسناد إلى فريق فني
+                            {t('assignToTechnicalTeam')}
                         </label>
                         <select
                             value={assignedTeamId}
@@ -425,18 +557,36 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
                             className="w-full rounded-md border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 py-2 px-3 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm"
                             required
                         >
-                            <option value="" disabled>-- اختر فريق --</option>
-                            {technicalTeams.map(team => (
-                            <option key={team.id} value={team.id}>{team.name} (القائد: {team.leaderName})</option>
+                            <option value="" disabled>{`-- ${t('chooseTeam')} --`}</option>
+                            {teamsForSelection.map(team => (
+                            <option key={team.id} value={team.id}>{team.name} ({t('teamLeader')}: {team.leaderName})</option>
                             ))}
                         </select>
+                        {/* Selected team details */}
+                        {selectedTeam && (
+                          <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
+                            <div className="text-sm font-medium mb-1">{selectedTeam.name} — {t('teamLeader')}: {selectedTeam.leaderName}</div>
+                            <div>
+                              <div className="text-sm text-slate-600 dark:text-slate-300 mb-1">{t('teamMembers')}</div>
+                              {selectedTeam.members && selectedTeam.members.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedTeam.members.map(m => (
+                                    <span key={m} className="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded-full text-xs">{m}</span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-slate-500">{t('notSpecified')}</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         </div>
                     </div>
                 </div>
 
                 {isEditMode && projectDetailsFromReport?.workflowDocs && projectDetailsFromReport.workflowDocs.length > 0 && (
                     <div>
-                        <h3 className="text-lg font-semibold mb-4 border-b pb-2">مرفقات سير العمل (من الفريق الفني)</h3>
+                        <h3 className="text-lg font-semibold mb-4 border-b pb-2">{t('workflowAttachmentsFromTeam')}</h3>
                         <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg space-y-2">
                              {projectDetailsFromReport.workflowDocs.map(file => (
                                 <a key={file.id} href={file.url} target="_blank" rel="noopener noreferrer" className="text-sm p-2 bg-slate-200 dark:bg-slate-700 rounded flex items-center gap-2 hover:bg-primary/20 transition-colors">
@@ -448,10 +598,10 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
                 )}
 
                 <div>
-                    <h3 className="text-lg font-semibold mb-4 border-b pb-2">المواصفات الفنية</h3>
+                    <h3 className="text-lg font-semibold mb-4 border-b pb-2">{t('technicalSpecifications')}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div className="lg:col-span-1">
-                        <label className="block text-sm font-medium mb-1">نوع اللوح (اختيار متعدد)</label>
+                        <label className="block text-sm font-medium mb-1">{t('panelTypeMultiSelect')}</label>
                         <select 
                             value={panelType} 
                             onChange={e => setPanelType(e.target.value)} 
@@ -461,28 +611,28 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
                         </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">عدد الألواح</label>
+                            <label className="block text-sm font-medium mb-1">{t('numberOfPanels')}</label>
                             <Input type="number" value={panelCount} onChange={e => setPanelCount(e.target.value)} required />
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                         <div>
-                            <label className="block text-sm font-medium mb-1">عدد القواعد (15x2)</label>
+                            <label className="block text-sm font-medium mb-1">{t('numBases15x2')}</label>
                             <Input type="number" value={baseType15x2Count} onChange={e => setBaseType15x2Count(e.target.value)} required />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">عدد القواعد (30x2)</label>
+                            <label className="block text-sm font-medium mb-1">{t('numBases30x2')}</label>
                             <Input type="number" value={baseType30x2Count} onChange={e => setBaseType30x2Count(e.target.value)} required />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">عدد القواعد الإجمالي</label>
+                            <label className="block text-sm font-medium mb-1">{t('totalNumberOfBases')}</label>
                             <Input type="number" value={totalBases} readOnly className="bg-slate-200 dark:bg-slate-700" />
                         </div>
                     </div>
                 </div>
                 
                 <div>
-                    <h3 className="text-lg font-semibold mb-4 border-b pb-2">مراحل سير العمل</h3>
+                    <h3 className="text-lg font-semibold mb-4 border-b pb-2">{t('workflowStages')}</h3>
                     <div className="space-y-3">
                         {updates.map(u => <UpdateItem key={u.id} update={u} />)}
                     </div>
@@ -491,9 +641,9 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
                 {/* Exceptions Section */}
                 <div className="pt-6 border-t">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold flex items-center gap-2"><AlertTriangle size={20} className="text-amber-500"/> الاستثناءات</h3>
-                        <Button type="button" variant="secondary" icon={<PlusCircle size={16}/>} onClick={() => setExceptionsModalOpen(true)} disabled={!isEditMode} title={!isEditMode ? "يجب حفظ المشروع أولاً" : ""}>
-                            إضافة استثناء
+                        <h3 className="text-lg font-semibold flex items-center gap-2"><AlertTriangle size={20} className="text-amber-500"/> {t('projectExceptions')}</h3>
+                        <Button type="button" variant="secondary" icon={<PlusCircle size={16}/>} onClick={() => setExceptionsModalOpen(true)} disabled={!isEditMode} title={!isEditMode ? t('mustSaveProjectFirst') : ""}>
+                            {t('addException')}
                         </Button>
                     </div>
                     <div className="space-y-3">
@@ -512,12 +662,12 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
                                 )}
                             </div>
                         ))}
-                        {exceptions.length === 0 && <p className="text-sm text-center text-slate-500 py-4">لا توجد استثناءات مسجلة.</p>}
+                        {exceptions.length === 0 && <p className="text-sm text-center text-slate-500 py-4">{t('noExceptionsRecorded')}</p>}
                     </div>
                 </div>
 
                 <div className="flex justify-end pt-8 border-t">
-                <Button type="submit" size="lg" isLoading={isSaving}>{isEditMode ? "حفظ التعديلات" : "حفظ تقرير المشروع"}</Button>
+                <Button type="submit" size="lg" isLoading={isSaving}>{isEditMode ? t('saveChanges') : t('saveProjectReport')}</Button>
                 </div>
             </form>
             </CardContent>
@@ -527,8 +677,8 @@ const ProjectReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ repor
         isOpen={isExceptionsModalOpen}
         onClose={() => setExceptionsModalOpen(false)}
         onSubmit={handleAddException}
-        title="إضافة استثناء جديد"
-        submitButtonText="إضافة"
+        title={t('addNewException')}
+        submitButtonText={t('add')}
         required
       />
     </>

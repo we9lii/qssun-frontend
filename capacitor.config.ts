@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.qssun.reports',
-  appName: 'Qssun Reports',
+  appName: 'Qrs',
   webDir: 'dist',
   server: {
     androidScheme: 'https'

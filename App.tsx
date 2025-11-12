@@ -1,4 +1,5 @@
 
+
 import React, { useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -11,7 +12,7 @@ import { usePushNotifications } from './hooks/usePushNotifications';
 // Layout
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
-import { NaseehWidget } from './components/ai/NaseehWidget';
+
 import { ConfirmationModal } from './components/common/ConfirmationModal';
 import { Skeleton } from './components/common/Skeleton';
 import WorkflowRequestModal from './screens/employee/WorkflowRequestModal';
@@ -36,6 +37,8 @@ import WorkflowScreen from './screens/employee/WorkflowScreen';
 import WorkflowDetailScreen from './screens/employee/WorkflowDetailScreen';
 import ProfileScreen from './screens/employee/ProfileScreen';
 import EmployeeAnalyticsScreen from './screens/employee/EmployeeAnalyticsScreen';
+import PackageRequestsScreen from './screens/employee/PackageRequestsScreen';
+import PackageDetailScreen from './screens/employee/PackageDetailScreen';
 
 // Admin Screens
 import AllReportsScreen from './screens/admin/AllReportsScreen';
@@ -44,7 +47,7 @@ import AdminEmployeeDetailScreen from './screens/admin/AdminEmployeeDetailScreen
 import ManageBranchesScreen from './screens/admin/ManageBranchesScreen';
 import ManageTeamsScreen from './screens/admin/ManageTeamsScreen';
 import ServiceEvaluationScreen from './screens/admin/ServiceEvaluationScreen';
-import { AdminAnalyticsScreen } from './screens/admin/AnalyticsScreen';
+import AdminAnalyticsScreen from './screens/admin/AnalyticsScreen';
 import ManageNotificationsScreen from './screens/admin/ManageNotificationsScreen';
 import ManagePermissionsScreen from './screens/admin/ManagePermissionsScreen';
 import ComponentsShowcaseScreen from './screens/admin/ComponentsShowcaseScreen';
@@ -55,7 +58,10 @@ import ReportDetailScreen from './screens/common/ReportDetailScreen';
 import TechnicalSupportScreen from './screens/common/TechnicalSupportScreen';
 import NaseehScreen from './screens/common/NaseehScreen';
 
-import { Role, Report, WorkflowRequest } from './types';
+import { Role, Report, WorkflowRequest, ReportType } from './types';
+import { PrintableView } from './components/ui/PrintableView';
+import { createPortal } from 'react-dom';
+import AccessGuard from './components/common/AccessGuard';
 
 // Wrapper components to fetch data for dynamic routes
 const ReportDetailWrapper = () => {
@@ -72,25 +78,51 @@ const WorkflowDetailWrapper = () => {
   return request ? <WorkflowDetailScreen request={request} /> : <Navigate to="/workflow" replace />;
 };
 
-const EditReportWrapper: React.FC<{ mode: 'sales' | 'maintenance' | 'projects' }> = ({ mode }) => {
-    const { reportId } = useParams<{ reportId: string }>();
-    const { reports } = useAppStore();
-    const reportToEdit = reports.find(r => r.id === reportId);
+const EditSalesReportWrapper = () => {
+  const { reportId } = useParams<{ reportId: string }>();
+  const { reports } = useAppStore();
+  const report = reports.find(r => r.id === reportId && r.type === ReportType.Sales) || null;
+  return <SalesReportsScreen reportToEdit={report} />;
+};
 
-    if (!reportToEdit) {
-        return <Navigate to="/log" replace />;
-    }
+const EditMaintenanceReportWrapper = () => {
+  const { reportId } = useParams<{ reportId: string }>();
+  const { reports } = useAppStore();
+  const report = reports.find(r => r.id === reportId && r.type === ReportType.Maintenance) || null;
+  return <MaintenanceReportsScreen reportToEdit={report} />;
+};
 
-    switch (mode) {
-        case 'sales':
-            return <SalesReportsScreen reportToEdit={reportToEdit} />;
-        case 'maintenance':
-            return <MaintenanceReportsScreen reportToEdit={reportToEdit} />;
-        case 'projects':
-            return <ProjectReportsScreen reportToEdit={reportToEdit} />;
-        default:
-            return <Navigate to="/log" replace />;
-    }
+const EditProjectReportWrapper = () => {
+  const { reportId } = useParams<{ reportId: string }>();
+  const { reports } = useAppStore();
+  const report = reports.find(r => r.id === reportId && r.type === ReportType.Project) || null;
+  return <ProjectReportsScreen reportToEdit={report} />;
+};
+
+const PrintPortalBridge: React.FC = () => {
+  const { reportForPrinting, clearReportForPrinting } = useAppStore();
+
+  React.useEffect(() => {
+    if (!reportForPrinting) return;
+    const handleAfterPrint = () => {
+      clearReportForPrinting();
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    const printTimeout = setTimeout(() => window.print(), 100);
+    // Fallback clear in case afterprint doesn't fire
+    const fallbackTimeout = setTimeout(() => clearReportForPrinting(), 6000);
+    return () => {
+      clearTimeout(printTimeout);
+      clearTimeout(fallbackTimeout);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, [reportForPrinting, clearReportForPrinting]);
+
+  if (!reportForPrinting) return null;
+  const mountEl = document.getElementById('print-mount-point');
+  if (!mountEl) return null;
+  return createPortal(<PrintableView report={reportForPrinting} />, mountEl);
 };
 
 const AppLayout: React.FC = () => {
@@ -108,14 +140,16 @@ const AppLayout: React.FC = () => {
     <div className="min-h-screen bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200" dir="rtl">
       <Sidebar />
       <div 
-        className={`flex flex-col h-screen transition-all duration-300
-          ${isMobileMenuOpen ? 'blur-sm brightness-50' : ''}
-          lg:pe-64 lg:ps-4
-          ${isSidebarCollapsed ? 'lg:pe-20' : 'lg:pe-64'}
-        `}
+        className={`flex flex-col min-h-screen transition-all duration-300 ${isMobileMenuOpen ? '' : ''} ${isSidebarCollapsed ? 'lg:ps-20' : 'lg:ps-64'}`}
       >
         <Header toggleMobileMenu={() => setMobileMenuOpen(!isMobileMenuOpen)} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        {/* Mobile Overlay to prevent content interaction when menu is open */}
+        <div
+          className={`fixed inset-0 bg-black/30 backdrop-blur-sm z-30 lg:hidden ${isMobileMenuOpen ? 'block' : 'hidden'}`}
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+        <main className={`flex-1 overflow-y-auto p-4 md:p-6 ${isMobileMenuOpen ? 'pointer-events-none' : 'pointer-events-auto'}`}>
           <Routes>
             {user?.role === Role.Admin ? (
               <>
@@ -130,22 +164,25 @@ const AppLayout: React.FC = () => {
                 <Route path="/notifications" element={<ManageNotificationsScreen />} />
                 <Route path="/permissions" element={<ManagePermissionsScreen />} />
                 <Route path="/showcase" element={<ComponentsShowcaseScreen />} />
-                <Route path="/admin/projects" element={<AdminProjectReportsScreen />} />
+                <Route path="/admin-projects" element={<AdminProjectReportsScreen />} />
               </>
             ) : (
               <>
                 <Route path="/" element={<EmployeeDashboardScreen />} />
-                <Route path="/sales" element={<SalesReportsScreen reportToEdit={null} />} />
-                <Route path="/sales/edit/:reportId" element={<EditReportWrapper mode="sales" />} />
-                <Route path="/maintenance" element={<MaintenanceReportsScreen reportToEdit={null} />} />
-                <Route path="/maintenance/edit/:reportId" element={<EditReportWrapper mode="maintenance" />} />
-                <Route path="/projects" element={<ProjectDashboardScreen />} />
-                <Route path="/projects/new" element={<ProjectReportsScreen reportToEdit={null} />} />
-                <Route path="/projects/edit/:reportId" element={<EditReportWrapper mode="projects" />} />
+                <Route path="/sales" element={<AccessGuard requiredType={ReportType.Sales}><SalesReportsScreen /></AccessGuard>} />
+                <Route path="/sales/edit/:reportId" element={<AccessGuard requiredType={ReportType.Sales}><EditSalesReportWrapper /></AccessGuard>} />
+                <Route path="/maintenance" element={<AccessGuard requiredType={ReportType.Maintenance}><MaintenanceReportsScreen /></AccessGuard>} />
+                <Route path="/maintenance/edit/:reportId" element={<AccessGuard requiredType={ReportType.Maintenance}><EditMaintenanceReportWrapper /></AccessGuard>} />
+                <Route path="/projects" element={<AccessGuard requiredType={ReportType.Project}><ProjectReportsScreen /></AccessGuard>} />
+                <Route path="/projects/new" element={<AccessGuard requiredType={ReportType.Project}><ProjectReportsScreen /></AccessGuard>} />
+                <Route path="/projects/edit/:reportId" element={<AccessGuard requiredType={ReportType.Project}><EditProjectReportWrapper /></AccessGuard>} />
+                <Route path="/project-dashboard" element={<ProjectDashboardScreen />} />
                 <Route path="/quotations/new" element={<CreateQuotationScreen />} />
                 <Route path="/team-projects" element={<TeamProjectsScreen />} />
                 <Route path="/log" element={<ReportsLogScreen />} />
                 <Route path="/analytics" element={<EmployeeAnalyticsScreen />} />
+                <Route path="/packages" element={<PackageRequestsScreen />} />
+                <Route path="/packages/:id" element={<PackageDetailScreen />} />
               </>
             )}
             {/* Common Routes */}
@@ -159,78 +196,68 @@ const AppLayout: React.FC = () => {
           </Routes>
         </main>
       </div>
-       <NaseehWidget />
+       {/* <NaseehWidget /> */}
        <WorkflowRequestModal isOpen={useAppStore(s => s.isWorkflowModalOpen)} />
+       <PrintPortalBridge />
     </div>
   );
 };
 
 const App: React.FC = () => {
-    const { user, isLoading, theme } = useAppContext();
-    const { confirmationState, closeConfirmation, fetchInitialData, isDataLoading } = useAppStore();
+  const { user, isLoading, theme } = useAppContext();
+  const navigate = useNavigate();
+  const { isDataLoading, confirmationState, closeConfirmation, fetchInitialData } = useAppStore();
 
-    // Initialize Push Notifications
-    usePushNotifications(user?.id);
+  // Initialize Push Notifications with user id
+  usePushNotifications(user?.id);
 
-    useEffect(() => {
-        if (user) {
-            fetchInitialData(user);
-        }
-    }, [user, fetchInitialData]);
-
-    useEffect(() => {
-        const root = window.document.documentElement;
-        root.classList.remove('light', 'dark');
-        root.classList.add(theme);
-    }, [theme]);
-
-    if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-slate-100 dark:bg-slate-800">
-                <div className="w-64 space-y-4">
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                </div>
-            </div>
-        );
+  // Trigger initial data fetch once user is available
+  useEffect(() => {
+    if (user) {
+      fetchInitialData(user);
     }
-    
-    return (
-        <>
-            <Toaster position="bottom-center" toastOptions={{
-                className: 'dark:bg-slate-700 dark:text-slate-200',
-            }}/>
-            <ConfirmationModal 
-                isOpen={confirmationState.isOpen}
-                message={confirmationState.message}
-                onConfirm={() => {
-                    confirmationState.onConfirm();
-                    closeConfirmation();
-                }}
-                onCancel={closeConfirmation}
-            />
-            <Routes>
-                {!user ? (
-                    <>
-                        <Route path="/login" element={<LoginScreen />} />
-                        <Route path="*" element={<Navigate to="/login" replace />} />
-                    </>
-                ) : user.isFirstLogin ? (
-                    <Route path="*" element={<OnboardingScreen />} />
-                ) : isDataLoading ? (
-                     <Route path="*" element={
-                        <div className="flex h-screen items-center justify-center bg-slate-100 dark:bg-slate-800">
-                           <p>جاري تحميل البيانات...</p>
-                        </div>
-                     } />
-                ) : (
-                    <Route path="/*" element={<AppLayout />} />
-                )}
-            </Routes>
-        </>
-    );
+  }, [user, fetchInitialData]);
+
+  // Apply theme class to <html> element
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!user) navigate('/login');
+    }
+  }, [user, isLoading, navigate]);
+
+  return (
+    <>
+        <Toaster position="top-left" reverseOrder={false} />
+        <ConfirmationModal 
+            isOpen={confirmationState.isOpen}
+            message={confirmationState.message || ''}
+            onConfirm={confirmationState.onConfirm}
+            onCancel={closeConfirmation}
+        />
+        <Routes>
+            {!user ? (
+                <>
+                    <Route path="/login" element={<LoginScreen />} />
+                    <Route path="*" element={<Navigate to="/login" replace />} />
+                </>
+            ) : isDataLoading ? (
+                 <Route path="*" element={
+                    <div className="flex h-screen items-center justify-center bg-slate-100 dark:bg-slate-800">
+                       <p>جاري تحميل البيانات...</p>
+                    </div>
+                 } />
+            ) : (
+                <Route path="/*" element={<AppLayout />} />
+            )}
+        </Routes>
+    </>
+  );
 };
 
 export default App;

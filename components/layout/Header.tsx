@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleMobileMenu }) => {
         <>
             {/* Desktop Header */}
             <header 
-                className="hidden lg:flex bg-white/70 dark:bg-slate-700/70 backdrop-blur-lg px-4 py-3 items-center justify-between border-b border-slate-200 dark:border-slate-600 sticky top-0 z-20 gap-4"
+                className="hidden lg:flex bg-white/70 dark:bg-slate-700/70 backdrop-blur-lg px-4 py-3 items-center justify-between border-b border-slate-200 dark:border-slate-600 sticky top-0 z-50 gap-4"
                 dir="ltr"
             >
                 {/* Left Side: User Info & Toggles */}
@@ -59,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({ toggleMobileMenu }) => {
 
             {/* Mobile Header (Rebuilt with Flexbox) */}
             <header 
-                className="lg:hidden sticky top-0 z-20 p-2 h-[70px] bg-white/70 dark:bg-slate-700/70 backdrop-blur-lg border-b border-slate-200 dark:border-slate-600"
+                className="lg:hidden sticky top-0 z-50 p-2 h-[70px] bg-white/70 dark:bg-slate-700/70 backdrop-blur-lg border-b border-slate-200 dark:border-slate-600"
                 dir="ltr"
             >
                 <div className="flex items-center justify-between w-full h-full">

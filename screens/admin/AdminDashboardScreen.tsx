@@ -127,7 +127,7 @@ const AdminDashboardScreen: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <ReportTypeCard title="تقارير المبيعات" icon={BarChart} reports={reportCategories.sales} reportType={ReportType.Sales} color="text-report-sales" />
                 <ReportTypeCard title="تقارير الصيانة" icon={Wrench} reports={reportCategories.maintenance} reportType={ReportType.Maintenance} color="text-report-maintenance" />
-                <ReportTypeCard title="تقارير المشاريع" icon={Briefcase} reports={reportCategories.projects} reportType={ReportType.Project} color="text-report-project" viewAllPath="/admin/projects" />
+                <ReportTypeCard title="تقارير المشاريع" icon={Briefcase} reports={reportCategories.projects} reportType={ReportType.Project} color="text-report-project" viewAllPath="/admin-projects" />
                 <ReportTypeCard title="الاستيراد والتصدير" icon={Download} reports={reportCategories.workflows} color="text-nav-workflow" />
             </div>
 
@@ -143,18 +143,10 @@ const AdminDashboardScreen: React.FC = () => {
                                    ? report.modifications[report.modifications.length - 1].timestamp 
                                    : report.date;
                                
-                               const hasUnreadNotes = useMemo(() => {
-                                    if (!report.adminNotes || !user) return false;
-                                    for (const note of report.adminNotes) {
-                                        if (!note.readBy?.includes(user.id)) return true;
-                                        if (note.replies) {
-                                            for (const reply of note.replies) {
-                                                if (!reply.readBy?.includes(user.id)) return true;
-                                            }
-                                        }
-                                    }
-                                    return false;
-                                }, [report.adminNotes, user]);
+                               const hasUnreadNotes = !!user && (report.adminNotes || []).some(note => {
+                                    if (!note.readBy?.includes(user.id)) return true;
+                                    return (note.replies || []).some(reply => !reply.readBy?.includes(user.id));
+                                });
 
                                return (
                                    <div key={report.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg gap-3">

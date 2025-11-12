@@ -23,8 +23,9 @@ const typeColors: { [key in ReportType]: string } = {
 };
 
 const ProjectUpdateItem: React.FC<{ update: ProjectUpdate, canViewAllFiles: boolean, currentUserId?: string }> = ({ update, canViewAllFiles, currentUserId }) => {
-    
-    const visibleFiles = canViewAllFiles 
+    const { t } = useAppContext();
+    const isHandoverStage = update.id === 'deliveryHandover' || update.id === 'deliveryHandover_signed';
+    const visibleFiles = (canViewAllFiles || isHandoverStage)
         ? update.files 
         : update.files?.filter(file => file.uploadedBy === currentUserId);
         
@@ -47,7 +48,7 @@ const ProjectUpdateItem: React.FC<{ update: ProjectUpdate, canViewAllFiles: bool
             )}
             {visibleFiles && visibleFiles.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1">
-                    <h5 className="text-xs font-semibold text-slate-500">الملفات المرفقة:</h5>
+                    <h5 className="text-xs font-semibold text-slate-500">{t('attachedFiles')}</h5>
                     {visibleFiles.map((file) => (
                         <a key={file.id} href={file.url} target="_blank" rel="noopener noreferrer" className="text-xs p-1 bg-slate-200 dark:bg-slate-700 rounded flex items-center gap-1.5 hover:text-primary transition-colors">
                             <Download size={12} /> {file.fileName}
@@ -61,7 +62,7 @@ const ProjectUpdateItem: React.FC<{ update: ProjectUpdate, canViewAllFiles: bool
 
 
 const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
-    const { user } = useAppContext();
+    const { t, user, lang } = useAppContext();
     const canViewAllFiles = user?.role !== Role.TeamLead;
     const currentUserId = user?.id;
 
@@ -71,25 +72,25 @@ const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
             return (
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <InfoItem label="إجمالي العملاء" value={salesDetails.totalCustomers} />
-                        <InfoItem label="نوع الخدمة" value={salesDetails.serviceType} />
+                        <InfoItem label={t('totalCustomers')} value={salesDetails.totalCustomers} />
+                        <InfoItem label={t('serviceType')} value={salesDetails.serviceType} />
                     </div>
-                    <h4 className="font-semibold pt-4 border-t mt-4">تفاصيل العملاء:</h4>
+                    <h4 className="font-semibold pt-4 border-t mt-4">{t('customerDetails')}:</h4>
                      {salesDetails.customers.length > 0 ? (
                         <div className="space-y-4">
                             {salesDetails.customers.map((c) => (
                                 <div key={c.id} className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                        <InfoItem icon={User} label="الاسم" value={c.name} />
-                                        <InfoItem icon={Phone} label="الهاتف" value={c.phone} />
-                                        <InfoItem icon={MapPin} label="المنطقة" value={c.region} />
-                                        <InfoItem icon={FileText} label="الطلب" value={c.requestType} />
+                                        <InfoItem icon={User} label={t('name')} value={c.name} />
+                                        <InfoItem icon={Phone} label={t('phone')} value={c.phone} />
+                                        <InfoItem icon={MapPin} label={t('region')} value={c.region} />
+                                        <InfoItem icon={FileText} label={t('requestType')} value={c.requestType} />
                                     </div>
-                                    {c.notes && <InfoItem label="الملاحظات" value={c.notes} isFullWidth className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700" />}
+                                    {c.notes && <InfoItem label={t('notes')} value={c.notes} isFullWidth className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700" />}
                                     
                                     {c.files && c.files.length > 0 && (
                                         <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                                            <h5 className="text-sm font-semibold mb-2">المرفقات:</h5>
+                                            <h5 className="text-sm font-semibold mb-2">{t('attachedFiles')}</h5>
                                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                                 {c.files.map((file, index) => (
                                                     <a
@@ -110,7 +111,7 @@ const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
                             ))}
                         </div>
                     ) : (
-                        <p className="text-sm text-slate-500">لا يوجد عملاء مضافون في هذا التقرير.</p>
+                        <p className="text-sm text-slate-500">{t('noCustomersAdded')}</p>
                     )}
                 </div>
             );
@@ -119,18 +120,18 @@ const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
              return (
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <InfoItem label="اسم العميل" value={maintDetails.customerName} />
-                        <InfoItem label="نوع الخدمة" value={maintDetails.serviceType} />
-                        <InfoItem label="حالة العمل" value={maintDetails.workStatus} />
-                        <InfoItem label="المدة (ساعات)" value={maintDetails.duration} />
-                        <InfoItem label="الموقع" value={maintDetails.location} isFullWidth />
-                        <InfoItem label="المعدات" value={maintDetails.equipment} isFullWidth />
-                        <InfoItem label="الملاحظات" value={maintDetails.notes} isFullWidth />
+                        <InfoItem label={t('customerName')} value={maintDetails.customerName} />
+                        <InfoItem label={t('serviceType')} value={maintDetails.serviceType} />
+                        <InfoItem label={t('workStatus')} value={maintDetails.workStatus} />
+                        <InfoItem label={t('durationHours')} value={maintDetails.duration} />
+                        <InfoItem label={t('location')} value={maintDetails.location} isFullWidth />
+                        <InfoItem label={t('equipmentUsed')} value={maintDetails.equipment} isFullWidth />
+                        <InfoItem label={t('technicalNotes')} value={maintDetails.notes} isFullWidth />
                     </div>
                     
                     {maintDetails.beforeImages && maintDetails.beforeImages.length > 0 && (
                         <div>
-                            <h4 className="font-semibold pt-4 border-t mt-4">صور قبل العمل</h4>
+                            <h4 className="font-semibold pt-4 border-t mt-4">{t('beforeWorkPhotos')}</h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
                                 {maintDetails.beforeImages.map((img, index) => (
                                     <a key={index} href={img.url} target="_blank" rel="noopener noreferrer" className="block">
@@ -140,13 +141,13 @@ const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
                             </div>
                         </div>
                     )}
-                    
+
                     {maintDetails.afterImages && maintDetails.afterImages.length > 0 && (
                         <div>
-                            <h4 className="font-semibold pt-4 border-t mt-4">صور بعد العمل</h4>
+                            <h4 className="font-semibold pt-4 border-t mt-4">{t('afterWorkPhotos')}</h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
                                 {maintDetails.afterImages.map((img, index) => (
-                                     <a key={index} href={img.url} target="_blank" rel="noopener noreferrer" className="block">
+                                    <a key={index} href={img.url} target="_blank" rel="noopener noreferrer" className="block">
                                         <img src={img.url} alt={`After ${index + 1}`} className="w-full h-24 object-cover rounded-md" />
                                     </a>
                                 ))}
@@ -159,33 +160,46 @@ const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
             const projectDetails = report.details as ProjectDetails;
             const { technicalTeams } = useAppStore.getState();
             const assignedTeam = technicalTeams.find(t => t.id === report.assignedTeamId);
-            
+            const filteredUpdates = (user?.role === Role.TeamLead)
+                ? (projectDetails.updates || []).filter(u => !['contract','firstPayment','secondPayment'].includes(u.id))
+                : (projectDetails.updates || []);
             return (
                 <div className="space-y-6">
-                    <div>
-                        <h4 className="font-semibold mb-2">المعلومات الأساسية</h4>
-                        <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                            <InfoItem icon={User} label="مالك المشروع" value={projectDetails.projectOwner} />
-                            <InfoItem icon={Phone} label="رقم جوال المالك" value={projectDetails.projectOwnerPhone} />
-                            <InfoItem icon={MapPin} label="الموقع" value={projectDetails.location} />
-                            <InfoItem icon={Briefcase} label="حجم المشروع" value={projectDetails.size} />
-                            <InfoItem icon={Users2} label="الفريق المسند" value={assignedTeam?.name || 'غير محدد'} className="md:col-span-2" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 className="font-semibold mb-2">{t('basicInformation')}</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <InfoItem icon={User} label={t('projectOwner')} value={projectDetails.projectOwner} />
+                                <InfoItem icon={Phone} label={t('projectOwnerPhone')} value={projectDetails.projectOwnerPhone} />
+                                <InfoItem icon={MapPin} label={t('projectLocation')} value={projectDetails.location} />
+                                <InfoItem icon={Briefcase} label={t('projectSize')} value={projectDetails.size} />
+                                <InfoItem icon={Users2} label={t('assignedTeam')} value={assignedTeam?.name || t('notSpecified')} className="md:col-span-2" />
+                            </div>
+                        </div>
+                        <div>
+                            <h4 className="font-semibold mb-2">{t('technicalTeam')}</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <InfoItem icon={User} label={t('teamLeader')} value={assignedTeam?.leaderName || t('notSpecified')} />
+                                <InfoItem icon={Users2} label={t('teamMembers')} value={(assignedTeam?.members && assignedTeam.members.length > 0) ? assignedTeam.members.join(lang === 'ar' ? '، ' : ', ') : t('notSpecified')} className="md:col-span-2" />
+                            </div>
                         </div>
                     </div>
-                     <div>
-                        <h4 className="font-semibold mb-2">المواصفات الفنية</h4>
-                        <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-4">
-                           <InfoItem label="نوع اللوح" value={projectDetails.panelType === 'other' ? projectDetails.customPanelType : projectDetails.panelType} />
-                           <InfoItem label="عدد الألواح" value={projectDetails.panelCount} />
-                           <InfoItem label="عدد القواعد (15x2)" value={projectDetails.baseType15x2Count} />
-                           <InfoItem label="عدد القواعد (30x2)" value={projectDetails.baseType30x2Count} />
-                           <InfoItem label="إجمالي القواعد" value={projectDetails.totalBases} />
+
+                    <div>
+                        <h4 className="font-semibold mb-2">{t('technicalSpecifications')}</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <InfoItem label={t('panelType')} value={projectDetails.panelType === 'other' ? projectDetails.customPanelType : projectDetails.panelType} />
+                            <InfoItem label={t('panelCount')} value={projectDetails.panelCount} />
+                            <InfoItem label={t('numBases15x2')} value={projectDetails.baseType15x2Count} />
+                            <InfoItem label={t('numBases30x2')} value={projectDetails.baseType30x2Count} />
+                            <InfoItem label={t('totalNumberOfBases')} value={projectDetails.totalBases} />
                         </div>
                     </div>
+
                     <div>
-                        <h4 className="font-semibold mb-2">مراحل سير العمل</h4>
+                        <h4 className="font-semibold mb-2">{t('workflowStages')}</h4>
                         <div className="space-y-2">
-                            {projectDetails.updates.map(update => (
+                            {filteredUpdates.map((update) => (
                                 <ProjectUpdateItem key={update.id} update={update} canViewAllFiles={canViewAllFiles} currentUserId={currentUserId} />
                             ))}
                         </div>
@@ -193,9 +207,9 @@ const RenderReportDetails: React.FC<{ report: Report }> = ({ report }) => {
                 </div>
             );
         default:
-            return <p>لا توجد تفاصيل لعرضها لهذا النوع من التقارير.</p>
+            return <p>{t('noDetailsForReportType')}</p>;
     }
-}
+};
 
 const InfoItem: React.FC<{ label: string, value?: string | number, isFullWidth?: boolean, icon?: React.ElementType, className?: string }> = ({ label, value, isFullWidth, icon: Icon, className }) => (
     <div className={`${isFullWidth ? 'col-span-full' : ''} ${className}`}>
@@ -203,12 +217,12 @@ const InfoItem: React.FC<{ label: string, value?: string | number, isFullWidth?:
             {Icon && <Icon size={14} />}
             {label}
         </p>
-        <p className="font-semibold truncate" dir={label.includes("هاتف") ? "ltr" : "auto"}>{value || '---'}</p>
+        <p className="font-semibold truncate" dir={label.includes('هاتف') ? 'ltr' : 'auto'}>{value || '---'}</p>
     </div>
 );
 
 const AdminNotesSection: React.FC<{ report: Report }> = ({ report }) => {
-    const { user } = useAppContext();
+    const { t, user } = useAppContext();
     const { addAdminNote, addAdminNoteReply } = useAppStore();
     const [newNote, setNewNote] = useState('');
     const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -322,7 +336,7 @@ const AdminNotesSection: React.FC<{ report: Report }> = ({ report }) => {
 
 const ReportDetailScreen: React.FC<ReportDetailScreenProps> = ({ report }) => {
     const { printReport, addProjectException, markNotesAsRead } = useAppStore();
-    const { user } = useAppContext();
+    const { t, user, lang } = useAppContext();
     const [isExceptionsModalOpen, setExceptionsModalOpen] = useState(false);
 
     useEffect(() => {
@@ -345,12 +359,12 @@ const ReportDetailScreen: React.FC<ReportDetailScreenProps> = ({ report }) => {
             <div className="space-y-6">
                 <ScreenHeader 
                     icon={BarChart2} 
-                    title={`تفاصيل التقرير: ${report.id}`}
+                    title={`${t('reportDetails')}: ${report.id}`}
                     colorClass={typeColors[report.type]}
                     onBack={backPath}
                     actionButton={
                         <Button onClick={() => printReport(report.id)} icon={<Printer size={16}/>}>
-                            طباعة
+                            {t('print')}
                         </Button>
                     }
                 />
@@ -361,9 +375,9 @@ const ReportDetailScreen: React.FC<ReportDetailScreenProps> = ({ report }) => {
                             <CardHeader>
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <CardTitle>التقرير - {report.type}</CardTitle>
+                                        <CardTitle>{t('report')} - {report.type}</CardTitle>
                                         <p className="text-sm text-slate-500">
-                                            بواسطة {report.employeeName} في {new Date(report.date).toLocaleDateString('ar-SA')}
+                                            {t('by')} {report.employeeName} {t('at')} {new Date(report.date).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}
                                         </p>
                                     </div>
                                     <Badge>{report.status}</Badge>
@@ -383,10 +397,10 @@ const ReportDetailScreen: React.FC<ReportDetailScreenProps> = ({ report }) => {
                                 <CardHeader>
                                     <div className="flex justify-between items-center">
                                         <CardTitle className="flex items-center gap-2">
-                                            <AlertTriangle size={20} className="text-amber-500"/> الاستثناءات
+                                            <AlertTriangle size={20} className="text-amber-500"/> {t('exceptions')}
                                         </CardTitle>
                                         <Button type="button" variant="secondary" icon={<PlusCircle size={16}/>} onClick={() => setExceptionsModalOpen(true)}>
-                                            إضافة استثناء
+                                            {t('addException')}
                                         </Button>
                                     </div>
                                 </CardHeader>
@@ -409,7 +423,7 @@ const ReportDetailScreen: React.FC<ReportDetailScreenProps> = ({ report }) => {
                                                 </div>
                                             ))
                                         ) : (
-                                            <p className="text-sm text-center text-slate-500 py-4">لا توجد استثناءات مسجلة.</p>
+                                            <p className="text-sm text-center text-slate-500 py-4">{t('noExceptionsRecorded')}</p>
                                         )}
                                     </div>
                                 </CardContent>
@@ -438,8 +452,8 @@ const ReportDetailScreen: React.FC<ReportDetailScreenProps> = ({ report }) => {
                     isOpen={isExceptionsModalOpen}
                     onClose={() => setExceptionsModalOpen(false)}
                     onSubmit={handleAddException}
-                    title="إضافة استثناء جديد"
-                    submitButtonText="إضافة"
+                    title={t('addNewException')}
+                    submitButtonText={t('add')}
                     required
                 />
             )}

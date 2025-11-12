@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Users2, Briefcase, Clock, Calendar, CheckCircle, Hammer, Check, File as FileIcon, Paperclip, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
@@ -42,9 +42,10 @@ const getStatusBadge = (status?: ProjectWorkflowStatus) => {
 type StageId = 'concreteWorks' | 'technicalCompletion' | 'deliveryHandover_signed' | 'workflowDocs';
 
 const TeamProjectsScreen: React.FC = () => {
-    const { user } = useAppContext();
+    const { user, t } = useAppContext();
     const { reports, currentUserLedTeam, acceptProjectAssignment, confirmProjectStage } = useAppStore();
     const navigate = useNavigate();
+    const location = useLocation();
     const [acceptingProjectId, setAcceptingProjectId] = useState<string | null>(null);
     const [isUploadModalOpen, setUploadModalOpen] = useState(false);
     
@@ -63,6 +64,54 @@ const TeamProjectsScreen: React.FC = () => {
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [reports, currentUserLedTeam]);
 
+    const statusParam = useMemo(() => new URLSearchParams(location.search).get('status'), [location.search]);
+    const displayedProjects = useMemo(() => {
+        switch (statusParam) {
+            case 'pending-acceptance':
+                return teamProjects.filter(p => p.projectWorkflowStatus === ProjectWorkflowStatus.PendingTeamAcceptance);
+            case 'in-progress':
+                return teamProjects.filter(p => 
+                    p.projectWorkflowStatus === ProjectWorkflowStatus.InProgress ||
+                    p.projectWorkflowStatus === ProjectWorkflowStatus.FinishingWorks ||
+                    p.projectWorkflowStatus === ProjectWorkflowStatus.ConcreteWorksDone
+                );
+            case 'technical-completed':
+                return teamProjects.filter(p => p.projectWorkflowStatus === ProjectWorkflowStatus.TechnicallyCompleted);
+            case 'completed':
+                return teamProjects.filter(p => 
+                    p.projectWorkflowStatus === ProjectWorkflowStatus.TechnicallyCompleted ||
+                    p.projectWorkflowStatus === ProjectWorkflowStatus.Finalized
+                );
+            case 'exceptions':
+                return teamProjects.filter(p => {
+                    const details = p.details as ProjectDetails;
+                    return Array.isArray(details?.exceptions) && details.exceptions.length > 0;
+                });
+            default:
+                return teamProjects;
+        }
+    }, [teamProjects, statusParam]);
+
+    // Dashboard KPIs for team lead
+    const kpis = useMemo(() => {
+        const total = teamProjects.length;
+        const pendingAcceptance = teamProjects.filter(p => p.projectWorkflowStatus === ProjectWorkflowStatus.PendingTeamAcceptance).length;
+        const inProgress = teamProjects.filter(p => 
+            p.projectWorkflowStatus === ProjectWorkflowStatus.InProgress ||
+            p.projectWorkflowStatus === ProjectWorkflowStatus.FinishingWorks ||
+            p.projectWorkflowStatus === ProjectWorkflowStatus.ConcreteWorksDone
+        ).length;
+        const completed = teamProjects.filter(p => 
+            p.projectWorkflowStatus === ProjectWorkflowStatus.TechnicallyCompleted ||
+            p.projectWorkflowStatus === ProjectWorkflowStatus.Finalized
+        ).length;
+        const withExceptions = teamProjects.filter(p => {
+            const details = p.details as ProjectDetails;
+            return Array.isArray(details?.exceptions) && details.exceptions.length > 0;
+        }).length;
+        return { total, pendingAcceptance, inProgress, completed, withExceptions };
+    }, [teamProjects]);
+
     if (!currentUserLedTeam) {
         return (
             <div className="flex items-center justify-center h-full">
@@ -70,228 +119,139 @@ const TeamProjectsScreen: React.FC = () => {
             </div>
         );
     }
-    
-    const handleStageSubmit = async (files: File[], comment: string) => {
-        if (!selectedProjectForUpload || !uploadModalConfig || !user) return;
-        
-        setIsFinalizing(selectedProjectForUpload.id);
-        try {
-            await confirmProjectStage(
-                selectedProjectForUpload.id,
-                uploadModalConfig.stageId,
-                files,
-                comment,
-                user.employeeId,
-            );
-        } finally {
-            setIsFinalizing(null);
-            closeUploadModal();
-        }
-    };
 
-
-    const openUploadModal = (project: Report, type: 'concrete' | 'complete' | 'signedHandover' | 'workflowDocs') => {
-        setSelectedProjectForUpload(project);
-        if (type === 'concrete') {
-            setUploadModalConfig({
-                title: "تأكيد إنجاز الخرسانة",
-                submitText: "تأكيد ورفع",
-                stageId: 'concreteWorks',
-            });
-        } else if (type === 'complete') {
-            setUploadModalConfig({
-                title: "تأكيد إكتمال تنفيذ المشروع",
-                submitText: "تأكيد ورفع صور قبل وبعد",
-                stageId: 'technicalCompletion',
-            });
-        } else if (type === 'signedHandover') {
-            setUploadModalConfig({
-                title: "رفع محضر التسليم الموقّع",
-                submitText: "رفع المحضر",
-                stageId: 'deliveryHandover_signed',
-            });
-        } else if (type === 'workflowDocs') {
-             setUploadModalConfig({
-                title: "رفع مرفقات سير العمل",
-                submitText: "رفع وإرسال للمراجعة",
-                stageId: 'workflowDocs',
-            });
-        }
-        setUploadModalOpen(true);
-    };
-
-    const closeUploadModal = () => {
-        setUploadModalOpen(false);
-        setSelectedProjectForUpload(null);
-        setUploadModalConfig(null);
-    };
-    
     return (
-        <>
-            <div className="space-y-6">
-                <ScreenHeader 
-                    icon={Users2} 
-                    title={`مشاريع فريق: ${currentUserLedTeam.name}`}
-                    colorClass="bg-violet-500" 
-                    onBack="/" 
-                />
-                
-                {teamProjects.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {teamProjects.map(project => {
-                            const details = project.details as ProjectDetails;
-                            const contractUpdate = details.updates.find(u => u.id === 'contract');
-                            const deliveryUpdate = details.updates.find(u => u.id === 'deliveryHandover');
-
-                             const hasUnreadNotes = useMemo(() => {
-                                if (!project.adminNotes || !user) return false;
-                                for (const note of project.adminNotes) {
-                                    if (!note.readBy?.includes(user.id)) return true;
-                                    if (note.replies) {
-                                        for (const reply of note.replies) {
-                                            if (!reply.readBy?.includes(user.id)) return true;
-                                        }
-                                    }
-                                }
-                                return false;
-                            }, [project.adminNotes, user]);
-
-                            return (
-                                <Card 
-                                    key={project.id} 
-                                    className="cursor-pointer hover:shadow-lg transition-shadow duration-300 transform hover:-translate-y-1 flex flex-col" 
-                                    onClick={() => navigate(`/reports/${project.id}`)}
-                                >
-                                    <CardHeader>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <CardTitle className="truncate text-base">{details.projectOwner}</CardTitle>
-                                                <p className="text-xs text-slate-500">{details.location}</p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {getStatusBadge(project.projectWorkflowStatus)}
-                                                {hasUnreadNotes && (
-                                                    <div className="p-1.5 bg-amber-500/20 text-amber-500 rounded-full animate-pulse" title="توجد ملاحظات جديدة">
-                                                        <MessageSquare size={14} />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="flex-1 flex flex-col justify-end">
-                                        <div className="space-y-2 text-xs text-slate-500">
-                                            {contractUpdate?.timestamp && (
-                                                <div className="flex items-center gap-2">
-                                                    <Clock size={14} />
-                                                    <span>عمر المشروع:</span>
-                                                    <span className="font-semibold text-slate-700 dark:text-slate-200">
-                                                        <TimeCounter startDateString={contractUpdate.timestamp} />
-                                                    </span>
-                                                </div>
-                                            )}
-                                            <div className="flex items-center gap-2">
-                                                <Calendar size={14} />
-                                                <span>تاريخ البدء الرسمي:</span>
-                                                <span className="font-semibold text-slate-700 dark:text-slate-200">{new Date(details.startDate).toLocaleDateString('ar-SA')}</span>
-                                            </div>
-                                        </div>
-                                        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
-                                            {project.projectWorkflowStatus === ProjectWorkflowStatus.PendingTeamAcceptance && (
-                                                <Button 
-                                                    className="w-full" 
-                                                    onClick={async () => {
-                                                        setAcceptingProjectId(project.id);
-                                                        try { await acceptProjectAssignment(project.id); } 
-                                                        finally { setAcceptingProjectId(null); }
-                                                    }}
-                                                    isLoading={acceptingProjectId === project.id}
-                                                    icon={<CheckCircle size={16} />}
-                                                >
-                                                    قبول استلام المشروع
-                                                </Button>
-                                            )}
-                                            {project.projectWorkflowStatus === ProjectWorkflowStatus.InProgress && (
-                                                <Button 
-                                                    className="w-full" 
-                                                    variant="secondary"
-                                                    onClick={() => openUploadModal(project, 'concrete')}
-                                                    icon={<Hammer size={16} />}
-                                                    isLoading={isFinalizing === project.id}
-                                                >
-                                                    تأكيد إنجاز الخرسانة
-                                                </Button>
-                                            )}
-                                            {project.projectWorkflowStatus === ProjectWorkflowStatus.FinishingWorks && (
-                                                <>
-                                                    {(!details.workflowDocs || details.workflowDocs.length === 0) ? (
-                                                        <Button
-                                                            className="w-full"
-                                                            variant="secondary"
-                                                            onClick={() => openUploadModal(project, 'workflowDocs')}
-                                                            icon={<Paperclip size={16} />}
-                                                            isLoading={isFinalizing === project.id}
-                                                        >
-                                                            رفع مرفقات لسير العمل
-                                                        </Button>
-                                                    ) : (
-                                                        <Button
-                                                            className="w-full"
-                                                            variant="secondary"
-                                                            onClick={() => openUploadModal(project, 'complete')}
-                                                            icon={<Check size={16} />}
-                                                            isLoading={isFinalizing === project.id}
-                                                        >
-                                                            تأكيد اكتمال التنفيذ
-                                                        </Button>
-                                                    )}
-                                                </>
-                                            )}
-                                            {(project.projectWorkflowStatus === ProjectWorkflowStatus.TechnicallyCompleted && deliveryUpdate?.files?.length === 1) && (
-                                                <Button
-                                                    className="w-full"
-                                                    variant="secondary"
-                                                    onClick={() => openUploadModal(project, 'signedHandover')}
-                                                    icon={<Paperclip size={16} />}
-                                                    isLoading={isFinalizing === project.id}
-                                                >
-                                                    رفع المحضر الموقّع
-                                                </Button>
-                                            )}
-                                            {(project.projectWorkflowStatus === ProjectWorkflowStatus.ConcreteWorksDone) && (
-                                                <div className="text-center text-sm text-amber-600 dark:text-amber-400 p-2 bg-amber-500/10 rounded-md">
-                                                    بانتظار استلام الدفعة الثانية من الإدارة
-                                                </div>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            );
-                        })}
+        <div className="space-y-6">
+            <ScreenHeader 
+                icon={Users2}
+                title={`${t('teamProjects')}: ${currentUserLedTeam?.name ?? ''}`}
+                colorClass="bg-nav-project"
+                onBack="/"
+                actionButton={
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant={statusParam === 'completed' ? 'default' : 'secondary'}
+                            onClick={() => navigate('/team-projects?status=completed')}
+                        >
+                            المشاريع المكتملة
+                        </Button>
+                        <Button
+                            variant={statusParam === 'completed' ? 'secondary' : 'default'}
+                            onClick={() => navigate('/team-projects')}
+                        >
+                            الكل
+                        </Button>
                     </div>
-                ) : (
-                    <Card>
+                }
+            />
+
+            {/* Team Info */}
+            <Card>
+                <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/30">
+                            <div className="text-sm text-slate-500">اسم الفريق</div>
+                            <div className="text-lg font-semibold">{currentUserLedTeam?.name}</div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/30">
+                            <div className="text-sm text-slate-500">قائد الفريق</div>
+                            <div className="text-lg font-semibold">{currentUserLedTeam?.leaderName}</div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/30">
+                            <div className="text-sm text-slate-500">عدد الأعضاء</div>
+                            <div className="text-lg font-semibold">{currentUserLedTeam?.members.length}</div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
+                <Link to="/project-dashboard" className="block">
+                    <Card className="cursor-pointer hover:shadow-md">
                         <CardContent className="pt-6">
-                             <EmptyState 
-                                icon={Briefcase} 
-                                title="لا توجد مشاريع مسندة" 
-                                message="لا توجد مشاريع مسندة لفريقك في الوقت الحالي." 
-                            />
+                            <div className="text-sm text-slate-500">إجمالي المشاريع</div>
+                            <div className="text-2xl font-bold">{kpis.total}</div>
                         </CardContent>
                     </Card>
-                )}
+                </Link>
+                <Link to="/team-projects?status=pending-acceptance" className="block">
+                    <Card className="cursor-pointer hover:shadow-md">
+                        <CardContent className="pt-6">
+                            <div className="text-sm text-slate-500">بانتظار الموافقة</div>
+                            <div className="text-2xl font-bold">{kpis.pendingAcceptance}</div>
+                        </CardContent>
+                    </Card>
+                </Link>
             </div>
-            {isUploadModalOpen && uploadModalConfig && (
-                <FileUploadModal
-                    isOpen={isUploadModalOpen}
-                    onClose={closeUploadModal}
-                    onSubmit={handleStageSubmit}
-                    title={uploadModalConfig.title}
-                    submitButtonText={uploadModalConfig.submitText}
-                    required
+
+            {/* Projects Grid */}
+            {displayedProjects.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {displayedProjects.map(project => {
+                        const details = project.details as ProjectDetails;
+                        return (
+                            <Card key={project.id} className="flex flex-col">
+                                <CardHeader>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <CardTitle className="mb-1 truncate">{details.projectOwner}</CardTitle>
+                                            <p className="text-xs text-slate-500 font-mono">{project.id}</p>
+                                        </div>
+                                        {getStatusBadge(project.projectWorkflowStatus)}
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="flex-1 space-y-3 text-sm">
+                                    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                                        <Hammer size={14} />
+                                        <span>{details.size}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                                        <Calendar size={14} />
+                                        <span>{t('startDate')}: {new Date(details.startDate).toLocaleDateString('ar-SA')}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                                        <Clock size={14} />
+                                        <span>منذ <TimeCounter startDateString={details.startDate} /></span>
+                                    </div>
+                                </CardContent>
+                                <div className="px-6 pb-6">
+                                    {project.projectWorkflowStatus === ProjectWorkflowStatus.PendingTeamAcceptance ? (
+                                        <Button
+                                            className="w-full"
+                                            isLoading={acceptingProjectId === project.id}
+                                            onClick={async () => {
+                                                setAcceptingProjectId(project.id);
+                                                try {
+                                                    await acceptProjectAssignment(project.id);
+                                                } catch (e) {
+                                                    toast.error('حدث خطأ أثناء الموافقة على المشروع');
+                                                } finally {
+                                                    setAcceptingProjectId(null);
+                                                }
+                                            }}
+                                        >
+                                            قبول المشروع
+                                        </Button>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Button variant="secondary" onClick={() => navigate(`/reports/${project.id}`)}>التفاصيل</Button>
+                                            <Button variant="secondary" onClick={() => navigate(`/project-dashboard`)}>لوحة المشاريع</Button>
+                                        </div>
+                                    )}
+                                </div>
+                            </Card>
+                        );
+                    })}
+                </div>
+            ) : (
+                <EmptyState 
+                    title={statusParam === 'pending-acceptance' ? t('noPendingTeamAcceptance') : t('noProjectReports')}
+                    description={statusParam === 'pending-acceptance' ? t('noPendingTeamAcceptanceMessage') : t('noProjectReportsMessage')}
                 />
             )}
-        </>
+        </div>
     );
-};
+}
 
 export default TeamProjectsScreen;

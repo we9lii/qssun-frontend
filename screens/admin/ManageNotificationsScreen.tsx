@@ -9,27 +9,80 @@ import { Textarea } from '../../components/ui/Textarea';
 import { Badge } from '../../components/ui/Badge';
 import { useAppContext } from '../../hooks/useAppContext';
 import { Notification, NotificationType } from '../../types';
-import { mockNotifications, mockUsers, mockBranches } from '../../data/mockData';
+import { API_BASE_URL } from '../../config';
 import useAppStore from '../../store/useAppStore';
 
 const ManageNotificationsScreen: React.FC = () => {
-  const { t } = useAppContext();
+  const { t, user } = useAppContext();
   // FIX: Remove setActiveView from destructuring as it does not exist.
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationType, setNotificationType] = useState<NotificationType>('all');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [recipient, setRecipient] = useState('');
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!title || !message) {
       alert('الرجاء إدخال العنوان والرسالة.');
       return;
     }
-    alert(`تم إرسال الإشعار بنجاح!`);
-    setTitle('');
-    setMessage('');
+
+    if ((notificationType === 'user' || notificationType === 'branch') && !recipient) {
+      alert('الرجاء اختيار المستلم.');
+      return;
+    }
+
+    const payload: any = {
+      title,
+      message,
+      type: notificationType,
+      targetUserId: notificationType === 'user' ? recipient : undefined,
+      targetBranchId: notificationType === 'branch' ? recipient : undefined,
+      senderId: user?.id,
+    };
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/notifications/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'فشل إرسال الإشعار.' }));
+        throw new Error(err.message || 'فشل إرسال الإشعار.');
+      }
+
+      // Determine recipient display name
+      let recipientLabel = 'الكل';
+      if (notificationType === 'user') {
+        const u = users.find(u => u.id === recipient);
+        recipientLabel = u?.name || recipient;
+      } else if (notificationType === 'branch') {
+        const b = branches.find(b => b.id === recipient);
+        recipientLabel = b?.name || recipient;
+      }
+
+      const newNotif: Notification = {
+        id: Date.now().toString(),
+        title,
+        message,
+        recipient: recipientLabel,
+        date: new Date().toISOString(),
+        read: false,
+        type: notificationType,
+      };
+      setNotifications(prev => [newNotif, ...prev]);
+      alert('تم إرسال الإشعار بنجاح!');
+      setTitle('');
+      setMessage('');
+      setRecipient('');
+      setNotificationType('all');
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || 'حدث خطأ أثناء الإرسال.');
+    }
   };
 
   return (
@@ -58,16 +111,16 @@ const ManageNotificationsScreen: React.FC = () => {
                 {notificationType === 'user' && (
                   <div>
                     <label className="text-sm font-medium">اختر الموظف</label>
-                    <select className="w-full rounded-md border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 py-2 px-3 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm" onChange={(e) => setRecipient(e.target.value)}>
-                      {mockUsers.map(u => <option key={u.id}>{u.name}</option>)}
+                    <select className="w-full rounded-md border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 py-2 px-3 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm" value={recipient} onChange={(e) => setRecipient(e.target.value)}>
+                      {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                   </div>
                 )}
                 {notificationType === 'branch' && (
                   <div>
                     <label className="text-sm font-medium">اختر الفرع</label>
-                    <select className="w-full rounded-md border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 py-2 px-3 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm" onChange={(e) => setRecipient(e.target.value)}>
-                       {mockBranches.map(b => <option key={b.id}>{b.name}</option>)}
+                    <select className="w-full rounded-md border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 py-2 px-3 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm" value={recipient} onChange={(e) => setRecipient(e.target.value)}>
+                       {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </select>
                   </div>
                 )}

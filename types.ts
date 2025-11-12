@@ -24,7 +24,10 @@ export interface User {
     joinDate: string;
     employeeType?: EmployeeType;
     hasImportExportPermission?: boolean;
+    hasPackageManagementPermission?: boolean;
     isFirstLogin?: boolean;
+    // NEW: Allowed report types for employee dashboard visibility
+    allowedReportTypes?: ReportType[];
 }
 
 export interface StatCardData {

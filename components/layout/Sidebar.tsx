@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, BarChart2, Users, FileText, Wrench, Briefcase, ChevronLeft, Download, User as UserIcon, Building2, Bell, Shield, LayoutGrid, LogOut, LifeBuoy, Users2 } from 'lucide-react';
-import { Role } from '../../types';
+import { Home, BarChart2, Users, FileText, Wrench, Briefcase, ChevronLeft, Download, User as UserIcon, Building2, Bell, Shield, LayoutGrid, LogOut, LifeBuoy, Users2, Package as PackageIcon } from 'lucide-react';
+import { Role, ReportType } from '../../types';
 import { useAppContext } from '../../hooks/useAppContext';
 import useAppStore from '../../store/useAppStore';
 import toast from 'react-hot-toast';
@@ -15,7 +15,12 @@ const employeeNavColors: { [key: string]: string } = {
     profile: 'bg-nav-profile',
     analytics: 'bg-indigo-500',
     support: 'bg-cyan-500',
+    // NEW: Team lead specific entries
+    'team-projects': 'bg-nav-project',
+    'completed-projects': 'bg-nav-project',
 };
+
+
 
 export const Sidebar: React.FC = () => {
     const { t, user, logout } = useAppContext();
@@ -25,6 +30,7 @@ export const Sidebar: React.FC = () => {
         isMobileMenuOpen, 
         setMobileMenuOpen 
     } = useAppStore();
+    const { currentUserLedTeam } = useAppStore();
     const location = useLocation();
 
     if (!user) return null;
@@ -48,6 +54,7 @@ export const Sidebar: React.FC = () => {
         { id: 'project', path: '/projects', label: t('projectReports'), icon: Briefcase },
         { id: 'log', path: '/log', label: t('reportsLog'), icon: BarChart2 },
         { id: 'workflow', path: '/workflow', label: t('importExport'), icon: Download },
+        { id: 'packages', path: '/packages', label: t('packageManagement'), icon: PackageIcon },
         { id: 'profile', path: '/profile', label: t('profile'), icon: UserIcon },
         { id: 'support', path: '/support', label: t('techSupport'), icon: LifeBuoy },
     ];
@@ -59,16 +66,45 @@ export const Sidebar: React.FC = () => {
         { id: 'manageEmployees', path: '/employees', label: t('manageEmployees'), icon: Users },
         { id: 'manageBranches', path: '/branches', label: t('manageBranches'), icon: Building2 },
         { id: 'manageTeams', path: '/teams', label: t('manageTeams'), icon: Users2 },
+        { id: 'managePermissions', path: '/permissions', label: t('managePermissions'), icon: Shield },
         { id: 'profile', path: '/profile', label: t('profile'), icon: UserIcon },
         { id: 'adminCenter', path: '/showcase', label: t('adminCenter'), icon: Shield },
         { id: 'support', path: '/support', label: t('techSupport'), icon: LifeBuoy },
     ];
 
     let finalEmployeeNav = employeeNav;
-    if (user.role === Role.Employee) {
+    const isDeveloper = String(user.role).toLowerCase() === 'developer';
+
+    if (user.role === Role.TeamLead || isDeveloper || !!currentUserLedTeam) {
+        // Restrict navigation for Team Leaders and Developers: assigned projects, reports log, and profile only
+        finalEmployeeNav = [
+            ...baseNav,
+            { id: 'team-projects', path: '/team-projects', label: t('teamProjects'), icon: Users2 },
+            { id: 'log', path: '/log', label: t('reportsLog'), icon: BarChart2 },
+            { id: 'profile', path: '/profile', label: t('profile'), icon: UserIcon },
+        ];
+    } else if (user.role !== Role.Admin) {
+        // Treat other non-admin roles as employees
+        const allowed = user.allowedReportTypes || [];
         finalEmployeeNav = employeeNav.filter(item => {
             if (item.id === 'workflow') {
-                return user.hasImportExportPermission;
+                return !!user.hasImportExportPermission;
+            }
+            if (item.id === 'packages') {
+                return !!user.hasPackageManagementPermission;
+            }
+            // Hide standard report tabs for import/export employees
+            if (user.hasImportExportPermission && ['sales', 'maintenance', 'project'].includes(item.id)) {
+                return false;
+            }
+            // Explicitly gate report tabs; if none allowed, hide them
+            if (['sales', 'maintenance', 'project'].includes(item.id)) {
+                const map: Record<string, ReportType> = {
+                    sales: ReportType.Sales,
+                    maintenance: ReportType.Maintenance,
+                    project: ReportType.Project,
+                };
+                return allowed.includes(map[item.id]);
             }
             return true;
         });
@@ -91,10 +127,9 @@ export const Sidebar: React.FC = () => {
             </div>
             <nav className="flex-1 flex flex-col gap-2 overflow-y-auto">
                 {navItems.map(item => {
-
                     return (
                         <div key={item.id} className="relative group">
-                             <NavLink
+                            <NavLink
                                 to={item.path}
                                 onClick={() => setMobileMenuOpen(false)}
                                 className={({ isActive }) => {
@@ -106,88 +141,53 @@ export const Sidebar: React.FC = () => {
                                 }}
                             >
                                 {({ isActive }) => {
-                                    let activeBgClass = 'bg-gradient-primary'; // Default for admin & dashboard
+                                    let activeBgClass = 'bg-gradient-primary';
                                     if (user.role !== Role.Admin && isActive && item.id !== 'dashboard') {
                                         activeBgClass = `${employeeNavColors[item.id] || 'bg-gradient-primary'}`;
                                     }
-
-                                    return (<>
-                                        <div className={`absolute top-0 right-0 h-full w-1.5 bg-white rounded-r-full transition-transform duration-500 ease-out ${isActive ? 'scale-y-100' : 'scale-y-0'}`}></div>
-                                        <div className={`absolute inset-0 transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-0'} ${activeBgClass} shadow-lg`}></div>
-                                        <div className="relative z-10 flex items-center transition-transform duration-200 group-hover:translate-x-[-2px]">
-                                            <item.icon size={20} className={`${isCollapsed ? 'lg:me-0' : 'me-3'} transition-transform duration-300 group-hover:scale-110`} />
-                                            <span className={`${isCollapsed && 'lg:hidden'}`}>{item.label}</span>
-                                        </div>
-                                    </>);
+                                    return (
+                                        <>
+                                            {/* Persistent background overlay when active + hover reveal */}
+                                            <span className={`absolute inset-0 ${isActive ? activeBgClass : ''} ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-300 z-0`}></span>
+                                            <div className="relative z-10 flex items-center gap-3">
+                                                <item.icon size={18} />
+                                                {!isCollapsed && <span>{item.label}</span>}
+                                            </div>
+                                        </>
+                                    );
                                 }}
                             </NavLink>
-                            {isCollapsed && (
-                                <span className="absolute top-1/2 -translate-y-1/2 left-full ms-2 hidden group-hover:lg:block bg-slate-800 text-white text-xs font-bold py-1 px-2 rounded-md whitespace-nowrap z-50">
-                                    {item.label}
-                                </span>
-                            )}
                         </div>
                     );
                 })}
             </nav>
-            
-            <div className="mt-auto hidden lg:block">
-                 <button 
-                    onClick={toggleSidebar}
-                    className="w-full flex justify-center items-center py-2 mb-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-600/50 rounded-lg transition-colors"
-                >
-                    <ChevronLeft size={20} className={`transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
-                </button>
-                
-                <div className={`${isCollapsed ? 'hidden' : 'block'}`}>
-                    <div className="p-2 text-center">
-                        <div className="mb-4">
-                            <a href="#" title="تم التطوير بواسطة">
-                                <img 
-                                    src="https://www2.0zz0.com/2025/09/11/09/271562700.gif" 
-                                    alt="Developer Logo"
-                                    className="h-24 w-auto mx-auto transition-transform duration-300 hover:scale-110"
-                                />
-                            </a>
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Qssun Reports v1.0
-                        </p>
-                    </div>
-                </div>
-
-                <div className={`relative group justify-center items-center ${isCollapsed ? 'flex' : 'hidden'}`}>
-                    <a href="#" className="p-2">
-                        <img 
-                            src="https://www2.0zz0.com/2025/09/11/09/271562700.gif" 
+            <div className="mt-auto">
+                {!isCollapsed && (
+                    <div className="w-full flex justify-center mb-4">
+                        <img
+                            src="https://www2.0zz0.com/2025/10/21/12/215289676.gif"
                             alt="Developer Logo"
-                            className="h-10 w-auto"
+                            className="h-24 w-auto"
                         />
-                    </a>
-                    <span className="absolute top-1/2 -translate-y-1/2 left-full ms-2 hidden group-hover:lg:block bg-slate-800 text-white text-xs font-bold py-1 px-2 rounded-md whitespace-nowrap z-50">
-                        تم التطوير بواسطة
-                    </span>
-                </div>
-            </div>
-            
-            <div className="lg:hidden mt-auto border-t border-slate-200 dark:border-slate-600 p-3">
-                {user && (
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-semibold text-slate-900 dark:text-white">{user.name}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{user.position}</p>
-                        </div>
-                        <button
-                            onClick={handleSignOut}
-                            className="p-2 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                            aria-label={t('logout')}
-                        >
-                            <LogOut size={18} />
-                        </button>
                     </div>
                 )}
+                <button 
+                    className="w-full px-4 py-3 text-sm font-medium rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-600/50 flex items-center justify-center"
+                    onClick={handleSignOut}
+                    title={t('signOut')}
+                >
+                    <LogOut size={18} />
+                </button>
             </div>
-
+            <button 
+                className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-600/50"
+                onClick={toggleSidebar}
+                title={isCollapsed ? t('expandSidebar') : t('collapseSidebar')}
+            >
+                <ChevronLeft size={18} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform`} />
+            </button>
         </aside>
     );
 };
+
+export default Sidebar;

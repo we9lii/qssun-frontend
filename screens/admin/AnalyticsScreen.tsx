@@ -45,6 +45,7 @@ const kpiCards = [
     { title: 'المواعيد القادمة', value: '12', icon: Calendar },
 ]
 
+// FIX: Changed to a default export to resolve the build issue.
 const AdminAnalyticsScreen: React.FC = () => {
   const { t } = useAppContext();
   // FIX: Remove setActiveView from destructuring as it does not exist.
@@ -91,67 +92,67 @@ const AdminAnalyticsScreen: React.FC = () => {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={employeePerformanceData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.1)"/>
-                <XAxis dataKey="name" stroke="rgb(200 200 200)" />
-                <YAxis stroke="rgb(200 200 200)"/>
-                <Tooltip contentStyle={{ backgroundColor: 'rgba(30, 41, 59, 0.9)', border: 'none', borderRadius: '0.5rem' }}/>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
                 <Legend />
-                <Bar dataKey="التقارير المقدمة" fill="#f59e0b" name="تقارير" />
-                <Bar dataKey="أعمال الصيانة" fill="#f97316" name="صيانة" />
-                <Bar dataKey="أعمال التركيب" fill="#10b981" name="تركيب" />
-                <Bar dataKey="الاستفسارات المعالجة" fill="#f97316" name="استفسارات" />
+                <Bar dataKey="التقارير المقدمة" fill="#8884d8" />
+                <Bar dataKey="أعمال الصيانة" fill="#82ca9d" />
+                <Bar dataKey="أعمال التركيب" fill="#ffc658" />
+                <Bar dataKey="الاستفسارات المعالجة" fill="#ff7300" />
               </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>اتجاه الإيرادات (شهري)</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.1)"/>
-                <XAxis dataKey="name" stroke="rgb(200 200 200)"/>
-                <YAxis stroke="rgb(200 200 200)"/>
-                <Tooltip contentStyle={{ backgroundColor: 'rgba(30, 41, 59, 0.9)', border: 'none', borderRadius: '0.5rem' }}/>
-                <Legend />
-                <Line type="monotone" dataKey="الإيرادات" stroke="#f59e0b" strokeWidth={2} activeDot={{ r: 8 }} />
-              </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader><CardTitle>إيرادات الفروع</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={branchRevenueData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255, 255, 255, 0.1)"/>
-                    <XAxis type="number" stroke="rgb(200 200 200)"/>
-                    <YAxis type="category" dataKey="name" stroke="rgb(200 200 200)"/>
-                    <Tooltip contentStyle={{ backgroundColor: 'rgba(30, 41, 59, 0.9)', border: 'none', borderRadius: '0.5rem' }}/>
-                    <Legend />
-                    <Bar dataKey="الإيرادات" fill="#f59e0b" name="الإيرادات (ر.س)"/>
-                </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
+            <CardHeader><CardTitle>الإيرادات الأسبوعية</CardTitle></CardHeader>
+            <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={revenueData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="الإيرادات" stroke="#8884d8" />
+                    </LineChart>
+                </ResponsiveContainer>
+            </CardContent>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>آراء العملاء</CardTitle></CardHeader>
-          <CardContent className="flex justify-center">
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={customerFeedbackData} cx="50%" cy="50%" labelLine={false} outerRadius={100} fill="#f59e0b" dataKey="value" nameKey="name" label={(entry: any) => `${entry.name} ${(entry.percent * 100).toFixed(0)}%`}>
-                  {customerFeedbackData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={FEEDBACK_COLORS[index % FEEDBACK_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ backgroundColor: 'rgba(30, 41, 59, 0.9)', border: 'none', borderRadius: '0.5rem' }}/>
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
+            <CardHeader><CardTitle>ملاحظات العملاء</CardTitle></CardHeader>
+            <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                        <Pie data={customerFeedbackData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
+                            {customerFeedbackData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={FEEDBACK_COLORS[index % FEEDBACK_COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                    </PieChart>
+                </ResponsiveContainer>
+            </CardContent>
+        </Card>
+        
+        <Card>
+            <CardHeader><CardTitle>إيرادات الفروع</CardTitle></CardHeader>
+            <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={branchRevenueData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="الإيرادات" fill="#82ca9d" />
+                    </BarChart>
+                </ResponsiveContainer>
+            </CardContent>
         </Card>
       </div>
     </div>

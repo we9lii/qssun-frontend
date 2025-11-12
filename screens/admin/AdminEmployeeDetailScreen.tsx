@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { Report, ReportStatus, ReportType } from '../../types';
 import { Input } from '../../components/ui/Input';
+import toast from 'react-hot-toast';
 
 
 const statusVariant: { [key in ReportStatus]: 'success' | 'warning' | 'destructive' } = {
@@ -31,7 +32,7 @@ const AdminEmployeeDetailScreen: React.FC = () => {
     const { employeeId: employeeIdFromParams } = useParams<{ employeeId: string }>();
     const navigate = useNavigate();
     // FIX: Remove non-existent properties from destructuring.
-    const { users, reports } = useAppStore();
+    const { users, reports, updateUser } = useAppStore();
 
     // FIX: Fetch employee from the global store using the URL parameter, not from mock data or a non-existent state property.
     const employee = useMemo(() => users.find(u => u.id === employeeIdFromParams), [users, employeeIdFromParams]);
@@ -41,6 +42,41 @@ const AdminEmployeeDetailScreen: React.FC = () => {
     const [typeFilter, setTypeFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
     const [dateFilter, setDateFilter] = useState('');
+
+    // Local state for allowed report types selection
+    const [allowedTypes, setAllowedTypes] = useState<ReportType[]>(() => [
+        ReportType.Sales,
+        ReportType.Maintenance,
+        ReportType.Project,
+    ]);
+
+    // Initialize local allowed types once employee is loaded
+    React.useEffect(() => {
+        if (employee) {
+            setAllowedTypes(employee.allowedReportTypes && employee.allowedReportTypes.length > 0
+                ? employee.allowedReportTypes
+                : [ReportType.Sales, ReportType.Maintenance, ReportType.Project]);
+        }
+    }, [employee]);
+
+    const toggleType = (type: ReportType) => {
+        setAllowedTypes(prev => {
+            if (prev.includes(type)) {
+                return prev.filter(t => t !== type);
+            }
+            return [...prev, type];
+        });
+    };
+
+    const handleSavePermissions = async () => {
+        if (!employee) return;
+        try {
+            await updateUser({ ...employee, allowedReportTypes: allowedTypes });
+            toast.success('تم حفظ صلاحيات أنواع التقارير لهذا الموظف بنجاح.');
+        } catch (error: any) {
+            toast.error(error?.message || 'فشل حفظ صلاحيات الموظف.');
+        }
+    };
 
     const filteredReports = useMemo(() => {
         if (!employee) return [];
@@ -117,7 +153,32 @@ const AdminEmployeeDetailScreen: React.FC = () => {
                     </Card>
                 </div>
                 
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 space-y-6">
+                    {/* Permissions: Allowed Report Types */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>صلاحيات أنواع التقارير</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex flex-wrap gap-4">
+                                {[ReportType.Sales, ReportType.Maintenance, ReportType.Project].map(rt => (
+                                    <label key={rt} className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
+                                        <input
+                                            type="checkbox"
+                                            checked={allowedTypes.includes(rt)}
+                                            onChange={() => toggleType(rt)}
+                                        />
+                                        <span>{rt}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <div className="mt-4 flex gap-2">
+                                <Button onClick={handleSavePermissions}>حفظ الصلاحيات</Button>
+                                <Button variant="secondary" onClick={() => setAllowedTypes([ReportType.Sales, ReportType.Maintenance, ReportType.Project])}>السماح للجميع</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
                     {/* Reports Log */}
                     <Card>
                         <CardHeader>

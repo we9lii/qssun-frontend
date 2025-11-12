@@ -4,23 +4,33 @@ import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
+  title?: string;
   message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
+  onConfirm: () => void | Promise<void>;
+  onCancel?: () => void;
+  onClose?: () => void;
+  confirmText?: string;
+  cancelText?: string;
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   isOpen,
+  title = 'تأكيد الإجراء',
   message,
   onConfirm,
   onCancel,
+  onClose,
+  confirmText = 'تأكيد',
+  cancelText = 'إلغاء',
 }) => {
   if (!isOpen) return null;
+
+  const handleClose = onCancel || onClose || (() => {});
 
   return (
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4"
-      onClick={onCancel}
+      onClick={handleClose}
     >
       <div
         className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md animate-modal-pop-in"
@@ -37,7 +47,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             </div>
             <div className="flex-1 text-center sm:text-right">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100" id="confirmation-title">
-                تأكيد الإجراء
+                {title}
               </h3>
               <div className="mt-2">
                 <p className="text-sm text-slate-500 dark:text-slate-400" id="confirmation-message">
@@ -51,18 +61,18 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           <Button
             type="button"
             variant="destructive"
-            onClick={onConfirm}
+            onClick={async () => { await onConfirm(); handleClose(); }}
             className="w-full sm:w-auto"
           >
-            تأكيد
+            {confirmText}
           </Button>
           <Button
             type="button"
             variant="secondary"
-            onClick={onCancel}
+            onClick={handleClose}
             className="w-full sm:w-auto"
           >
-            إلغاء
+            {cancelText}
           </Button>
         </div>
       </div>

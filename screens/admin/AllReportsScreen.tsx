@@ -90,7 +90,8 @@ const AllReportsScreen: React.FC = () => {
 
     const handleDelete = (reportId: string) => {
         openConfirmation('هل أنت متأكد من حذف هذا التقرير؟ لا يمكن التراجع عن هذا الإجراء.', () => {
-            deleteReport(reportId);
+            if (!user) return;
+            deleteReport(reportId, user);
         });
     };
 
@@ -176,18 +177,10 @@ const AllReportsScreen: React.FC = () => {
                                 <tbody>
                                     {paginatedReports.length > 0 ? (
                                         paginatedReports.map((report) => {
-                                            const hasUnreadNotes = useMemo(() => {
-                                                if (!report.adminNotes || !user) return false;
-                                                for (const note of report.adminNotes) {
-                                                    if (!note.readBy?.includes(user.id)) return true;
-                                                    if (note.replies) {
-                                                        for (const reply of note.replies) {
-                                                            if (!reply.readBy?.includes(user.id)) return true;
-                                                        }
-                                                    }
-                                                }
-                                                return false;
-                                            }, [report.adminNotes, user]);
+                                            const hasUnreadNotes = !!user && (report.adminNotes || []).some(note => {
+                                                if (!note.readBy?.includes(user.id)) return true;
+                                                return (note.replies || []).some(reply => !reply.readBy?.includes(user.id));
+                                            });
 
                                             return (
                                             <tr key={report.id} className={`bg-white dark:bg-slate-800 border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600/50 border-r-4 ${typeColors[report.type]}`}>

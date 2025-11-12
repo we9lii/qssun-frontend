@@ -20,7 +20,7 @@ type SalesReportFormInputs = {
 };
 
 const SalesReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ reportToEdit }) => {
-    const { user } = useAppContext();
+    const { t, user } = useAppContext();
     const { addReport, updateReport } = useAppStore();
     const navigate = useNavigate();
     const [isSaving, setIsSaving] = useState(false);
@@ -133,19 +133,19 @@ const SalesReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ reportT
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">نوع الخدمة</label>
+                                <label className="block text-sm font-medium mb-1">{t('serviceType')}</label>
                                 <select 
                                     {...register("serviceType")}
                                     className="w-full rounded-md border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 py-2 px-3 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm"
                                 >
-                                    <option>تركيب نظام شمسي</option>
-                                    <option>صيانة</option>
-                                    <option>استشارة فنية</option>
-                                    <option>معاينة موقع</option>
-                                    <option>ألواح شمسية</option>
-                                    <option>بطاريات</option>
-                                    <option>محولات</option>
-                                    <option>ملحقات</option>
+                                    <option value="تركيب نظام شمسي">{t('salesServiceTypeSolarInstall')}</option>
+                                    <option value="صيانة">{t('salesServiceTypeMaintenance')}</option>
+                                    <option value="استشارة فنية">{t('salesServiceTypeTechnicalConsulting')}</option>
+                                    <option value="معاينة موقع">{t('salesServiceTypeSiteSurvey')}</option>
+                                    <option value="ألواح شمسية">{t('salesProductPanels')}</option>
+                                    <option value="بطاريات">{t('salesProductBatteries')}</option>
+                                    <option value="محولات">{t('salesProductInverters')}</option>
+                                    <option value="ملحقات">{t('salesProductAccessories')}</option>
                                 </select>
                             </div>
                         </div>
@@ -161,10 +161,10 @@ const SalesReportsScreen: React.FC<{ reportToEdit: Report | null }> = ({ reportT
                                         <Input placeholder="رقم الجوال" dir="ltr" {...register(`customers.${index}.phone`, { required: true })} />
                                         <Input placeholder="المنطقة/المدينة" {...register(`customers.${index}.region`, { required: true })} />
                                         <select className="w-full rounded-md border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 py-2 px-3 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm" {...register(`customers.${index}.requestType`)}>
-                                            <option>استفسار سعر</option>
-                                            <option>طلب عرض سعر</option>
-                                            <option>متابعة</option>
-                                            <option>شكوى</option>
+                                            <option value="استفسار سعر">{t('customerRequestInquiryPrice')}</option>
+                                            <option value="طلب عرض سعر">{t('customerRequestQuote')}</option>
+                                            <option value="متابعة">{t('customerRequestFollowUp')}</option>
+                                            <option value="شكوى">{t('customerRequestComplaint')}</option>
                                         </select>
                                     </div>
                                     <div>

@@ -14,18 +14,18 @@ import toast from 'react-hot-toast';
 type ServiceType = 'repair' | 'install' | 'preview' | 'periodic';
 type WorkStatus = 'completed' | 'in_progress' | 'pending' | 'cancelled';
 
-const serviceTypes: { id: ServiceType; label: string; icon: React.ElementType; }[] = [
-    { id: 'repair', label: 'إصلاح', icon: Wrench },
-    { id: 'install', label: 'تركيب', icon: Settings },
-    { id: 'preview', label: 'معاينة', icon: Eye },
-    { id: 'periodic', label: 'صيانة دورية', icon: CheckCircle },
+const serviceTypes: { id: ServiceType; label?: string; icon: React.ElementType; }[] = [
+    { id: 'repair', icon: Wrench },
+    { id: 'install', icon: Settings },
+    { id: 'preview', icon: Eye },
+    { id: 'periodic', icon: CheckCircle },
 ];
 
-const workStatuses: { id: WorkStatus; label: string; className: string }[] = [
-    { id: 'completed', label: 'مكتمل', className: 'bg-success/80 hover:bg-success text-white' },
-    { id: 'in_progress', label: 'قيد العمل', className: 'bg-orange-500/80 hover:bg-orange-500 text-white' },
-    { id: 'pending', label: 'معلق', className: 'bg-slate-500/80 hover:bg-slate-500 text-white' },
-    { id: 'cancelled', label: 'ملغي', className: 'bg-destructive/80 hover:bg-destructive text-white' },
+const workStatuses: { id: WorkStatus; label?: string; className: string }[] = [
+    { id: 'completed', className: 'bg-success/80 hover:bg-success text-white' },
+    { id: 'in_progress', className: 'bg-orange-500/80 hover:bg-orange-500 text-white' },
+    { id: 'pending', className: 'bg-slate-500/80 hover:bg-slate-500 text-white' },
+    { id: 'cancelled', className: 'bg-destructive/80 hover:bg-destructive text-white' },
 ];
 
 interface MaintenanceReportsScreenProps {
@@ -33,7 +33,7 @@ interface MaintenanceReportsScreenProps {
 }
 
 const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ reportToEdit }) => {
-    const { user } = useAppContext();
+    const { t, user } = useAppContext();
     const { addReport, updateReport } = useAppStore();
     const navigate = useNavigate();
     const [beforeImages, setBeforeImages] = useState<MaintenanceImage[]>([]);
@@ -215,9 +215,14 @@ const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ rep
                                 <div>
                                     <h4 className="font-semibold mb-2">نوع الخدمة</h4>
                                     <div className="flex flex-wrap gap-2">
-                                        {serviceTypes.map(({ id, label, icon: Icon }) => (
+                                        {serviceTypes.map(({ id, icon: Icon }) => (
                                             <Button key={id} type="button" variant={activeService === id ? 'primary' : 'secondary'} className={`w-full justify-start`} icon={<Icon size={16}/>} onClick={() => setActiveService(id)}>
-                                                {label}
+                                                {t(
+                                                    id === 'repair' ? 'maintenanceServiceRepair' :
+                                                    id === 'install' ? 'maintenanceServiceInstall' :
+                                                    id === 'preview' ? 'maintenanceServicePreview' :
+                                                    'maintenanceServicePeriodic'
+                                                )}
                                             </Button>
                                         ))}
                                     </div>
@@ -225,9 +230,14 @@ const MaintenanceReportsScreen: React.FC<MaintenanceReportsScreenProps> = ({ rep
                                 <div>
                                     <h4 className="font-semibold mb-2">حالة العمل</h4>
                                     <div className="flex flex-wrap gap-2">
-                                    {workStatuses.map(({ id, label, className }) => (
+                                    {workStatuses.map(({ id, className }) => (
                                             <Button key={id} type="button" variant="secondary" className={`w-full justify-start ${activeStatus === id ? className : 'bg-slate-200 dark:bg-slate-600'}`} onClick={() => setActiveStatus(id)}>
-                                                {label}
+                                                {t(
+                                                    id === 'completed' ? 'workStatusCompleted' :
+                                                    id === 'in_progress' ? 'workStatusInProgress' :
+                                                    id === 'pending' ? 'workStatusPending' :
+                                                    'workStatusCancelled'
+                                                )}
                                             </Button>
                                     ))}
                                     </div>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "805840717847",
+    "project_id": "qssunr",
+    "storage_bucket": "qssunr.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:805840717847:android:57d7e83d6878cd9f1fb452",
+        "android_client_info": {
+          "package_name": "com.qssun.reports"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1Qi4WkXavpYfCh9QpDin760rHiIM_OWM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

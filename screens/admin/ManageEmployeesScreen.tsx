@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../comp
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
-import { User, Role } from '../../types';
+import { User, Role, ReportType } from '../../types';
 // FIX: Separated value and type imports for react-hook-form
 import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
@@ -29,26 +29,34 @@ const EmployeeFormModal: React.FC<{
 }> = ({ isOpen, onClose, employee, onSave, isSaving }) => {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<EmployeeFormInputs>();
   const { branches } = useAppStore();
+  const [allowedTypes, setAllowedTypes] = useState<ReportType[]>([ReportType.Sales, ReportType.Maintenance, ReportType.Project]);
+  const toggleType = (type: ReportType) => {
+    setAllowedTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
+  };
 
   useEffect(() => {
     if (isOpen) {
         if (employee) {
             reset(employee);
+            setAllowedTypes(employee.allowedReportTypes && employee.allowedReportTypes.length > 0
+                ? employee.allowedReportTypes
+                : [ReportType.Sales, ReportType.Maintenance, ReportType.Project]);
         } else {
             reset({ role: Role.Employee, branch: branches[0]?.name || '', department: 'الفني', employeeType: 'Technician', hasImportExportPermission: false, name: '', employeeId: '', email: '', phone: '', position: '' });
+            setAllowedTypes([ReportType.Sales, ReportType.Maintenance, ReportType.Project]);
         }
     }
   }, [employee, isOpen, reset, branches]);
   
   const onSubmit: SubmitHandler<EmployeeFormInputs> = data => {
     if (employee) {
-        onSave({ ...data, id: employee.id });
+        onSave({ ...data, id: employee.id, allowedReportTypes: allowedTypes });
     } else {
         if (!data.password) {
             toast.error("كلمة المرور مطلوبة للموظفين الجدد.");
             return;
         }
-        onSave(data);
+        onSave({ ...data, allowedReportTypes: allowedTypes });
     }
   };
   
@@ -122,6 +130,18 @@ const EmployeeFormModal: React.FC<{
                     <input type="checkbox" id="hasImportExportPermission" {...register("hasImportExportPermission")} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"/>
                     <label htmlFor="hasImportExportPermission" className="text-sm font-medium">صلاحية الاستيراد والتصدير</label>
                 </div>
+            </div>
+            <h3 className="font-semibold pt-4 border-t mt-4">صلاحيات أنواع التقارير</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[ReportType.Sales, ReportType.Maintenance, ReportType.Project].map(rt => (
+                    <label key={rt} className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
+                        <input type="checkbox" checked={allowedTypes.includes(rt)} onChange={() => toggleType(rt)} />
+                        <span>{rt}</span>
+                    </label>
+                ))}
+            </div>
+            <div className="mt-3">
+                <Button variant="secondary" onClick={() => setAllowedTypes([ReportType.Sales, ReportType.Maintenance, ReportType.Project])}>السماح للجميع</Button>
             </div>
           </CardContent>
           <CardFooter className="flex justify-end gap-2">

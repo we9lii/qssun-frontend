@@ -1,7 +1,7 @@
 {
-  "name": "Qssun Reports System",
-  "short_name": "Qssun",
-  "description": "A comprehensive management system for Qssun, designed to handle employee reports, project tracking, administrative tasks, and data analytics with a sophisticated user interface and robust security features.",
+  "name": "Qrs",
+  "short_name": "Qrs",
+  "description": "Qrs – نظام إدارة التقارير والمشاريع والمهام لمؤسسة Qssun.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -4,16 +4,18 @@ import React from 'react';
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
+  // Allow overriding the top accent stripe color (defaults to primary gradient)
+  accentClass?: string;
 }
 
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
-    ({ className, children, ...props }, ref) => (
+    ({ className, children, accentClass = 'bg-gradient-primary', ...props }, ref) => (
         <div
             ref={ref}
             className={`relative bg-white dark:bg-slate-700 rounded-xl shadow-lg transition-all duration-300 ${className}`}
             {...props}
         >
-            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-primary rounded-t-xl z-10"></div>
+            <div className={`absolute top-0 left-0 right-0 h-2 ${accentClass} rounded-t-xl z-10`}></div>
             {children}
         </div>
     )

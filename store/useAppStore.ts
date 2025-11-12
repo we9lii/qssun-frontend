@@ -37,7 +37,7 @@ interface AppState {
     reportForPrinting: Report | null;
     addReport: (report: Omit<Report, 'id'>) => Promise<void>;
     updateReport: (report: Report) => Promise<void>;
-    deleteReport: (reportId: string) => Promise<void>;
+    deleteReport: (reportId: string, requestingUser: User) => Promise<void>;
     printReport: (reportId: string) => void;
     clearReportForPrinting: () => void;
     acceptProjectAssignment: (projectId: string) => Promise<void>;
@@ -157,6 +157,30 @@ const useAppStore = create<AppState>((set, get) => ({
         }
     },
 
+    // Notifications helper
+    sendNotification: async ({ title, message, targetUserId, senderId, link }) => {
+        try {
+            const payload: any = {
+                title,
+                message,
+                type: 'user',
+                targetUserId,
+                senderId,
+                link,
+            };
+            const res = await fetch(`${API_BASE_URL}/notifications/send`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                const errText = await res.text();
+                console.error('Failed to send notification:', errText);
+            }
+        } catch (error) {
+            console.error('Failed to send notification:', error);
+        }
+    },
     // Workflow State
     requests: [],
     createRequest: async (requestData) => {
@@ -305,17 +329,34 @@ const useAppStore = create<AppState>((set, get) => ({
             
             const newReportFromServer = await response.json();
             set(state => ({ reports: [newReportFromServer, ...state.reports] }));
-        } catch (error: any) {
-            console.error('Error in addReport:', error);
-            toast.error(`فشل حفظ التقرير: ${error.message}`);
-            throw error;
-        }
+ 
+             // Notify team leader on initial assignment for new project reports
+             if (newReportFromServer.type === ReportType.Project && newReportFromServer.assignedTeamId) {
+                 const { technicalTeams, sendNotification } = get();
+                 const assignedTeam = technicalTeams.find(t => t.id === newReportFromServer.assignedTeamId);
+                 if (assignedTeam) {
+                     try {
+                         await sendNotification({
+                             title: 'إسناد مشروع جديد',
+                             message: 'تم إسناد مشروع جديد إلى فريقك. يرجى انتظار إشعار الموافقة ثم البدء.',
+                             targetUserId: assignedTeam.leaderId,
+                             senderId: newReportFromServer.employeeId,
+                             link: '/team-projects',
+                         });
+                     } catch { /* error logged inside sendNotification */ }
+                 }
+             }
+         } catch (error: any) {
+             console.error('Error in addReport:', error);
+             toast.error(`فشل حفظ التقرير: ${error.message}`);
+             throw error;
+         }
     },
     updateReport: async (report) => {
         try {
             const formData = new FormData();
             const reportJsonPayload = JSON.parse(JSON.stringify(report));
-
+    
             if (report.type === ReportType.Sales) {
                 report.details.customers?.forEach((customer: SalesCustomer, cIndex: number) => {
                     customer.files?.forEach(fileObj => {
@@ -341,7 +382,7 @@ const useAppStore = create<AppState>((set, get) => ({
                     }
                 });
             }
-
+    
             if (report.evaluation) {
                 report.evaluation.files?.forEach(fileObj => {
                     if (fileObj.file instanceof File) {
@@ -352,31 +393,84 @@ const useAppStore = create<AppState>((set, get) => ({
                     reportJsonPayload.evaluation.files = (report.evaluation.files || []).filter(f => f.url);
                 }
             }
-
+    
             formData.append('reportData', JSON.stringify(reportJsonPayload));
             
             const response = await fetch(`${API_BASE_URL}/reports/${report.id}`, {
                 method: 'PUT',
                 body: formData,
             });
-
+    
             if (!response.ok) throw new Error(await response.text());
-
+    
             const updatedReportFromServer = await response.json();
-
+    
+            // Capture previous snapshot before state update to compare assignment changes
+            const prev = get().reports.find(r => r.id === updatedReportFromServer.id);
+    
             set(state => ({
-                reports: state.reports.map(r => r.id === updatedReportFromServer.id ? updatedReportFromServer : r),
+                reports: state.reports.map(r => (r.id === updatedReportFromServer.id ? updatedReportFromServer : r)),
             }));
+    
+            // Notification triggers: assignment and team approval request
+            if (updatedReportFromServer.type === ReportType.Project) {
+                const assignedTeamIdAfter = updatedReportFromServer.assignedTeamId;
+                const assignedTeamIdBefore = prev?.assignedTeamId;
+                const projectWorkflowStatusBefore = prev?.projectWorkflowStatus;
+                const projectWorkflowStatusAfter = updatedReportFromServer.projectWorkflowStatus;
+    
+                // Trigger notification on newly assigned team leader
+                if (!assignedTeamIdBefore && assignedTeamIdAfter) {
+                    const assignedTeam = get().technicalTeams.find(t => t.id === assignedTeamIdAfter);
+                    const assignedLeaderId = assignedTeam?.leaderId;
+                    if (assignedLeaderId) {
+                        get().sendNotification({
+                            userId: assignedLeaderId,
+                            title: 'تم إسناد مشروع إلى فريقك',
+                            message: `مشروع جديد تم إسناده إلى فريقك. رقم التقرير: ${updatedReportFromServer.id}`,
+                            targetUserId: assignedLeaderId,
+                            senderId: updatedReportFromServer.employeeId,
+                            link: '/team-projects',
+                        });
+                    }
+                }
+    
+                // Trigger when team requests approval from admin (e.g., technicalCompletion or handover)
+                const requestedApprovalStages: ProjectWorkflowStatus[] = ['technicalCompletion', 'handover'];
+                if (
+                    projectWorkflowStatusBefore &&
+                    projectWorkflowStatusAfter &&
+                    projectWorkflowStatusBefore !== projectWorkflowStatusAfter &&
+                    requestedApprovalStages.includes(projectWorkflowStatusAfter)
+                ) {
+                    // Notify admins about approval request
+                    const adminUsers = get().users.filter(u => u.role === Role.Admin || u.role === Role.SuperAdmin);
+                    adminUsers.forEach(admin => {
+                        get().sendNotification({
+                            userId: admin.id,
+                            title: 'طلب موافقة من الفريق الفني',
+                            message: `فريق تقني طلب اعتماد مرحلة في مشروع رقم التقرير: ${updatedReportFromServer.id}`,
+                            targetUserId: admin.id,
+                            senderId: updatedReportFromServer.employeeId,
+                            link: `/admin/project-reports?reportId=${updatedReportFromServer.id}`,
+                        });
+                    });
+                }
+            }
         } catch (error: any) {
              console.error('Error in updateReport:', error);
             toast.error(`فشل تحديث التقرير: ${error.message}`);
             throw error;
         }
     },
-    deleteReport: async (reportId) => {
+    deleteReport: async (reportId, requestingUser) => {
         try {
             const response = await fetch(`${API_BASE_URL}/reports/${reportId}`, {
                 method: 'DELETE',
+                headers: {
+                    'x-user-id': requestingUser.id,
+                    'x-user-role': requestingUser.role,
+                },
             });
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ message: 'فشل الحذف من الخادم' }));
@@ -397,8 +491,8 @@ const useAppStore = create<AppState>((set, get) => ({
         if (report) set({ reportForPrinting: report });
     },
     clearReportForPrinting: () => set({ reportForPrinting: null }),
-    acceptProjectAssignment: async (projectId) => {
-        const { reports, updateReport } = get();
+    acceptProjectAssignment: async (projectId: string) => {
+        const { reports, updateReport, currentUserLedTeam, sendNotification } = get();
         const project = reports.find(r => r.id === projectId);
         if (!project || project.type !== ReportType.Project || project.projectWorkflowStatus !== ProjectWorkflowStatus.PendingTeamAcceptance) {
             toast.error('لا يمكن قبول المشروع في حالته الحالية.');
@@ -410,6 +504,16 @@ const useAppStore = create<AppState>((set, get) => ({
         };
         await updateReport(updatedProject);
         toast.success('تم قبول المشروع وبدأ التنفيذ.');
+        // Notify the original employee that leader accepted the project
+        try {
+            await sendNotification({
+                title: 'قبول المشروع',
+                message: `الفني ${currentUserLedTeam?.leaderName || ''} قبل المشروع وسيبدأ التنفيذ.`,
+                targetUserId: project.employeeId,
+                senderId: currentUserLedTeam?.leaderId,
+                link: `/reports/${project.id}`,
+            });
+        } catch (e) { /* logging handled inside sendNotification */ }
     },
     confirmProjectStage: async (projectId, stageId, files, comment, employeeId) => {
         const formData = new FormData();
@@ -445,6 +549,25 @@ const useAppStore = create<AppState>((set, get) => ({
             }));
             toast.success('تم تحديث مرحلة المشروع بنجاح!');
             
+            // Notify original employee about stage update
+            const { sendNotification, currentUserLedTeam } = get();
+            const stageLabels: Record<string, string> = {
+                concreteWorks: 'تم إنهاء أعمال الخرسانة',
+                technicalCompletion: 'اكتمل المشروع فنياً',
+                deliveryHandover_signed: 'تم استلام المحضر الموقّع',
+                workflowDocs: 'تم رفع مستندات سير العمل',
+            };
+            const stageText = stageLabels[stageId] || 'تم تحديث مرحلة المشروع';
+            try {
+                await sendNotification({
+                    title: 'تحديث مرحلة المشروع',
+                    message: `${stageText}.`,
+                    targetUserId: updatedReport.employeeId,
+                    senderId: currentUserLedTeam?.leaderId,
+                    link: `/reports/${updatedReport.id}`,
+                });
+            } catch (e) { /* logging handled inside sendNotification */ }
+            
         } catch (error: any) {
             console.error('Error confirming project stage:', error);
             toast.error(`فشل تحديث المرحلة: ${error.message}`);
@@ -458,7 +581,7 @@ const useAppStore = create<AppState>((set, get) => ({
         files.forEach(file => {
             formData.append('files', file);
         });
-
+    
         try {
             const response = await fetch(`${API_BASE_URL}/reports/${reportId}/add-exception`, {
                 method: 'POST',
@@ -476,6 +599,18 @@ const useAppStore = create<AppState>((set, get) => ({
                 reports: state.reports.map(r => r.id === updatedReport.id ? updatedReport : r),
             }));
             toast.success('تمت إضافة الاستثناء بنجاح!');
+    
+            // Notify original employee about the exception added by technical team
+            const { sendNotification, currentUserLedTeam } = get();
+            try {
+                await sendNotification({
+                    title: 'استثناء في المشروع',
+                    message: 'قام الفريق الفني بإضافة استثناء للمشروع.',
+                    targetUserId: updatedReport.employeeId,
+                    senderId: currentUserLedTeam?.leaderId,
+                    link: `/reports/${updatedReport.id}`,
+                });
+            } catch { /* error logged inside sendNotification */ }
             
         } catch (error: any) {
             console.error('Error adding project exception:', error);
@@ -591,16 +726,30 @@ const useAppStore = create<AppState>((set, get) => ({
     },
     updateUser: async (userData) => {
         try {
+            const payload = {
+                employeeId: userData.employeeId ?? 'N/A',
+                email: userData.email ?? 'N/A',
+                name: userData.name ?? 'N/A',
+                phone: userData.phone ?? 'N/A',
+                role: typeof userData.role === 'string' ? userData.role : String(userData.role),
+                branch: userData.branch ?? undefined,
+                department: userData.department ?? undefined,
+                position: userData.position ?? undefined,
+                employeeType: userData.employeeType ?? undefined,
+                hasImportExportPermission: !!userData.hasImportExportPermission,
+                allowedReportTypes: Array.isArray(userData.allowedReportTypes) ? userData.allowedReportTypes : [],
+            };
             const response = await fetch(`${API_BASE_URL}/users/${userData.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(userData),
+                body: JSON.stringify(payload),
             });
             if (!response.ok) throw new Error(await response.text());
             const updatedUser = await response.json();
             set(state => ({
                 users: state.users.map(u => (u.id === updatedUser.id ? updatedUser : u)),
             }));
+            toast.success('تم تحديث الدور بنجاح');
         } catch (error) {
             console.error("Failed to update user:", error);
             toast.error('فشل تحديث الموظف.');
@@ -639,15 +788,15 @@ const useAppStore = create<AppState>((set, get) => ({
     updateBranch: async (branchData) => {
         try {
              const response = await fetch(`${API_BASE_URL}/branches/${branchData.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(branchData),
-            });
-            if (!response.ok) throw new Error(await response.text());
-            const updatedBranch = await response.json();
-            set(state => ({ 
-                branches: state.branches.map(b => b.id === updatedBranch.id ? updatedBranch : b) 
-            }));
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(branchData),
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const updatedBranch = await response.json();
+        set(state => ({ 
+            branches: state.branches.map(b => b.id === updatedBranch.id ? updatedBranch : b) 
+        }));
         } catch (error) {
             console.error("Failed to update branch:", error);
             toast.error('فشل تحديث الفرع.');
@@ -686,15 +835,15 @@ const useAppStore = create<AppState>((set, get) => ({
     updateTechnicalTeam: async (teamData) => {
         try {
              const response = await fetch(`${API_BASE_URL}/teams/${teamData.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(teamData),
-            });
-            if (!response.ok) throw new Error(await response.text());
-            const updatedTeam = await response.json();
-            set(state => ({ 
-                technicalTeams: state.technicalTeams.map(t => t.id === updatedTeam.id ? updatedTeam : t) 
-            }));
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(teamData),
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const updatedTeam = await response.json();
+        set(state => ({ 
+            technicalTeams: state.technicalTeams.map(t => t.id === updatedTeam.id ? updatedTeam : t) 
+        }));
         } catch (error) {
             console.error("Failed to update team:", error);
             toast.error('فشل تحديث الفريق.');

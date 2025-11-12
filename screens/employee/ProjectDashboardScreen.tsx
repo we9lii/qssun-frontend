@@ -11,37 +11,58 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 
 // Helper function for status badges, consistent with other screens
-const getStatusBadge = (status?: ProjectWorkflowStatus) => {
+const getStatusBadge = (status?: ProjectWorkflowStatus, t?: (key: string) => string) => {
     switch(status) {
         case ProjectWorkflowStatus.PendingTeamAcceptance:
-            return <Badge variant="warning">بانتظار موافقة الفريق</Badge>;
+            return <Badge variant="warning">{t ? t('projectStatusPendingTeamAcceptance') : 'بانتظار موافقة الفريق'}</Badge>;
         case ProjectWorkflowStatus.InProgress:
-             return <Badge variant="default" className="bg-blue-500/10 text-blue-500">قيد التنفيذ</Badge>;
+             return <Badge variant="default" className="bg-blue-500/10 text-blue-500">{t ? t('projectStatusInProgress') : 'قيد التنفيذ'}</Badge>;
         case ProjectWorkflowStatus.FinishingWorks:
-             return <Badge variant="default" className="bg-indigo-500/10 text-indigo-500">أعمال التشطيبات</Badge>;
+             return <Badge variant="default" className="bg-indigo-500/10 text-indigo-500">{t ? t('projectStatusFinishingWorks') : 'أعمال التشطيبات'}</Badge>;
         case ProjectWorkflowStatus.ConcreteWorksDone:
-             return <Badge variant="default" className="bg-orange-500/10 text-orange-500">بانتظار الدفعة الثانية</Badge>;
+             return <Badge variant="default" className="bg-orange-500/10 text-orange-500">{t ? t('projectStatusAwaitingSecondPayment') : 'بانتظار الدفعة الثانية'}</Badge>;
         case ProjectWorkflowStatus.TechnicallyCompleted:
-            return <Badge variant="success">مكتمل فنياً</Badge>;
+            return <Badge variant="success">{t ? t('projectStatusTechnicallyCompleted') : 'مكتمل فنياً'}</Badge>;
         case ProjectWorkflowStatus.Finalized:
-            return <Badge variant="success">مكتمل</Badge>;
+            return <Badge variant="success">{t ? t('projectStatusFinalized') : 'مكتمل'}</Badge>;
         default:
-            return <Badge>مسودة</Badge>;
+            return <Badge>{t ? t('projectStatusDraft') : 'مسودة'}</Badge>;
     }
 }
 
-const getCurrentStageLabel = (details: ProjectDetails): string => {
+const getStageLabelById = (id: string, t: (key: string) => string) => {
+    switch (id) {
+        case 'contract':
+            return t('projectStageContract');
+        case 'firstPayment':
+            return t('projectStageFirstPayment');
+        case 'notifyTeam':
+            return t('projectStageNotifyTeam');
+        case 'concreteWorks':
+            return t('projectStageConcreteWorks');
+        case 'secondPayment':
+            return t('projectStageSecondPayment');
+        case 'installationComplete':
+            return t('projectStageInstallationComplete');
+        case 'deliveryHandover':
+            return t('projectStageDeliveryHandover');
+        default:
+            return id;
+    }
+};
+
+const getCurrentStageLabel = (details: ProjectDetails, t: (key: string) => string): string => {
     const reversedUpdates = [...details.updates].reverse();
     const lastCompletedUpdate = reversedUpdates.find(u => u.completed);
     if (lastCompletedUpdate) {
-        return `متوقف عند: ${lastCompletedUpdate.label}`;
+        return `${t('projectCurrentStagePrefix')} ${getStageLabelById(lastCompletedUpdate.id, t)}`;
     }
-    return 'لم تبدأ المراحل بعد';
+    return t('projectStagesNotStarted');
 };
 
 const ProjectCard: React.FC<{ project: Report }> = ({ project }) => {
     const navigate = useNavigate();
-    const { user } = useAppContext();
+    const { t, user } = useAppContext();
     const details = project.details as ProjectDetails;
     const [isHovered, setIsHovered] = React.useState(false);
     
@@ -72,7 +93,7 @@ const ProjectCard: React.FC<{ project: Report }> = ({ project }) => {
                         <CardTitle className="mb-1 truncate">{details.projectOwner}</CardTitle>
                         <p className="text-xs text-slate-500 font-mono">{project.id}</p>
                     </div>
-                    {getStatusBadge(project.projectWorkflowStatus)}
+                    {getStatusBadge(project.projectWorkflowStatus, t)}
                 </div>
             </CardHeader>
             <CardContent className="flex-1 space-y-3 text-sm">
@@ -82,21 +103,21 @@ const ProjectCard: React.FC<{ project: Report }> = ({ project }) => {
                 </div>
                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                     <Calendar size={14} />
-                    <span>تاريخ البدء: {new Date(details.startDate).toLocaleDateString('ar-SA')}</span>
+                    <span>{t('startDate')}: {new Date(details.startDate).toLocaleDateString('ar-SA')}</span>
                 </div>
-                 <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600">
-                    <p className="text-xs font-semibold text-primary">{getCurrentStageLabel(details)}</p>
+                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600">
+                    <p className="text-xs font-semibold text-primary">{getCurrentStageLabel(details, t)}</p>
                 </div>
             </CardContent>
-             {/* Quick Actions */}
+            {/* Quick Actions */}
             <div className="absolute top-2 left-2 flex items-center gap-1">
-                 {hasUnreadNotes && (
-                    <div className="p-2 bg-amber-500/20 text-amber-500 rounded-full animate-pulse" title="توجد ملاحظات إدارية جديدة">
+                {hasUnreadNotes && (
+                    <div className="p-2 bg-amber-500/20 text-amber-500 rounded-full animate-pulse" title={t('newAdminNotes')}>
                         <MessageSquare size={14} />
                     </div>
                 )}
                 {isHovered && (
-                     <Button
+                    <Button
                         variant="secondary"
                         size="sm"
                         className="p-2 h-auto"
@@ -104,7 +125,7 @@ const ProjectCard: React.FC<{ project: Report }> = ({ project }) => {
                             e.stopPropagation();
                             navigate(`/projects/edit/${project.id}`);
                         }}
-                        title="تعديل التقرير"
+                        title={t('editReport')}
                     >
                         <Edit size={14} />
                     </Button>
@@ -140,13 +161,13 @@ const ProjectDashboardScreen: React.FC = () => {
                             onClick={() => navigate('/quotations/new')}
                             className="hidden sm:inline-flex"
                         >
-                            إنشاء عرض سعر
+                            {t('createQuotation')}
                         </Button>
                         <Button
                             icon={<PlusCircle size={18} />}
                             onClick={() => navigate('/projects/new')}
                         >
-                            تقرير مشروع جديد
+                            {t('newProjectReport')}
                         </Button>
                     </div>
                 }
@@ -163,14 +184,14 @@ const ProjectDashboardScreen: React.FC = () => {
                     <CardContent className="pt-6">
                         <EmptyState 
                             icon={Briefcase}
-                            title="لا توجد تقارير مشاريع"
-                            message="لم تقم بإنشاء أي تقارير مشاريع بعد. ابدأ بإنشاء تقرير جديد لتتبعه هنا."
+                            title={t('noProjectReports')}
+                            message={t('noProjectReportsMessage')}
                             action={
                                 <Button 
                                     icon={<PlusCircle size={18} />}
                                     onClick={() => navigate('/projects/new')}
                                 >
-                                    إنشاء تقرير مشروع جديد
+                                    {t('createNewProjectReport')}
                                 </Button>
                             }
                         />

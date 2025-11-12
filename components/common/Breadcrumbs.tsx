@@ -16,6 +16,7 @@ const pathHierarchy: { [key: string]: { parent?: string; labelKey: string, dynam
     '/log': { parent: '/', labelKey: 'reportsLog' },
     '/workflow': { parent: '/', labelKey: 'importExport' },
     '/workflow/:workflowId': { parent: '/workflow', labelKey: 'importExport', dynamic: true },
+    '/packages': { parent: '/', labelKey: 'packageManagement' },
     '/profile': { parent: '/', labelKey: 'profile' },
     '/support': { parent: '/', labelKey: 'techSupport' },
     '/reports/:reportId': { parent: '/log', labelKey: 'reportsLog', dynamic: true }, // Default parent for employee
@@ -28,6 +29,7 @@ const pathHierarchy: { [key: string]: { parent?: string; labelKey: string, dynam
     '/employees': { parent: '/', labelKey: 'manageEmployees' },
     '/employees/:employeeId': { parent: '/employees', labelKey: 'manageEmployees', dynamic: true },
     '/branches': { parent: '/', labelKey: 'manageBranches' },
+    '/permissions': { parent: '/', labelKey: 'managePermissions' },
     '/teams': { parent: '/showcase', labelKey: 'adminCenter' },
     '/showcase': { parent: '/', labelKey: 'adminCenter' },
 };
